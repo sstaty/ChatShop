@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd \"C:\\\\Coding\\\\AI-Engineering\\\\ChatShop\" && uv sync --extra test 2>&1)",
+      "Bash(cd \"C:\\\\Coding\\\\AI-Engineering\\\\ChatShop\" && uv run pytest tests/test_cleaner.py tests/test_chain.py -v 2>&1)"
+    ]
+  }
+}
