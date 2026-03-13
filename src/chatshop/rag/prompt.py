@@ -17,7 +17,7 @@ def build_user_message(query: str, products: list[Product]) -> str:
     """Format retrieved products into a structured context block for the LLM."""
     catalog_lines = ["PRODUCT CATALOG\n" + "=" * 40]
     for i, product in enumerate(products, start=1):
-        catalog_lines.append(f"\n[{i}] {product.to_document_text()}")
+        catalog_lines.append(f"\n[{i}] {product.to_context_text()}")
     catalog_lines.append("\n" + "=" * 40)
 
     catalog_block = "\n".join(catalog_lines)

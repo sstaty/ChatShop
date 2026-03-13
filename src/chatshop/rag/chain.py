@@ -21,7 +21,7 @@ class RAGChain:
         response = litellm.completion(
             model=settings.litellm_model,
             messages=messages,
-            api_key=settings.litellm_api_key or None,
+            api_key=self._api_key(),
         )
         return response.choices[0].message.content or ""
 
@@ -31,7 +31,7 @@ class RAGChain:
         response = litellm.completion(
             model=settings.litellm_model,
             messages=messages,
-            api_key=settings.litellm_api_key or None,
+            api_key=self._api_key(),
             stream=True,
         )
         for chunk in response:
@@ -41,6 +41,17 @@ class RAGChain:
                 yield content
 
     # ── Helpers ───────────────────────────────────────────────────────────────
+
+    @staticmethod
+    def _api_key() -> str | None:
+        """Pick the right API key based on the configured model.
+
+        OpenRouter models are prefixed "openrouter/…" and need the OpenRouter key.
+        Everything else falls back to the generic litellm_api_key.
+        """
+        if settings.litellm_model.startswith("openrouter/"):
+            return settings.openrouter_api_key or None
+        return settings.litellm_api_key or None
 
     def _build_messages(self, query: str) -> list[dict]:
         products = self._retriever.retrieve(query)
