@@ -3,6 +3,11 @@ import chromadb
 from chatshop.config import settings
 from chatshop.data.models import Product
 
+# Keys stored in metadata that map to base Product fields (not extra_attrs)
+_BASE_METADATA_KEYS = frozenset(
+    {"title", "category", "price", "rating", "rating_count", "description"}
+)
+
 
 class ChromaStore:
     """Thin wrapper around ChromaDB: upsert products and query by vector."""
@@ -35,14 +40,29 @@ class ChromaStore:
 
     # ── Read ─────────────────────────────────────────────────────────────────
 
-    def query(self, vector: list[float], top_k: int | None = None) -> list[Product]:
-        """Return the top-k most similar Products for the given query vector."""
+    def query(
+        self,
+        vector: list[float],
+        top_k: int | None = None,
+        where: dict | None = None,
+    ) -> list[Product]:
+        """Return the top-k most similar Products for the given query vector.
+
+        Args:
+            vector: Query embedding.
+            top_k: Number of results; falls back to settings.top_k_results.
+            where: Optional ChromaDB metadata filter dict, e.g.
+                   {"price": {"$lte": 200}, "wireless": True}
+        """
         k = top_k or settings.top_k_results
-        results = self._collection.query(
+        kwargs: dict = dict(
             query_embeddings=[vector],
             n_results=k,
             include=["metadatas", "documents"],
         )
+        if where:
+            kwargs["where"] = where
+        results = self._collection.query(**kwargs)
         return self._parse_results(results)
 
     def count(self) -> int:
@@ -59,6 +79,7 @@ class ChromaStore:
         for product_id, meta in zip(ids, metadatas):
             price = meta.get("price")
             rating = meta.get("rating")
+            extra_attrs = {k: v for k, v in meta.items() if k not in _BASE_METADATA_KEYS}
             products.append(
                 Product(
                     product_id=product_id,
@@ -68,6 +89,7 @@ class ChromaStore:
                     price=price if price and price > 0 else None,
                     rating=rating if rating and rating > 0 else None,
                     rating_count=meta.get("rating_count") or None,
+                    extra_attrs=extra_attrs,
                 )
             )
         return products

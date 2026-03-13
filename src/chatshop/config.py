@@ -18,6 +18,10 @@ class Settings(BaseSettings):
     # Data
     data_raw_dir: str = "data/raw"
 
+    # HuggingFace Hub
+    hf_token: str = ""
+    hf_dataset_repo: str = ""
+
     # RAG
     top_k_results: int = 5
 
