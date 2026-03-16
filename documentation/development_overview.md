@@ -7,10 +7,11 @@ Note: we use markdown files in repo to track history and allow Claude to read it
 ## Phase 1
 The Core for ChatShop project: 
 - core project structure
-- data manipulation - tested on a synthethic data base
+- data manipulation - tested on a synthethic data (100 headphone products created with claude sonnet 4.5)
 - embeddings with openai & huggingface, chromaDB for vectorstore
 - RAG to retrieve closest matches
 - chat interface with gradio UI
+- Here you can find [Basic RAG](phase_1_basic_rag)
 
 
 ## Phase 2 
@@ -23,7 +24,7 @@ Advanced replies with agentic AI.
 - handling multi-criteria ranking:
     - "I do both long flights and morning runs — what's the best single pair that handles both?" — travel and sport have partially conflicting requirements (comfort/ANC vs secure fit/sweat resistance)
     - "Compare the best ANC headphone under $150 vs the best one under $300 — is the upgrade worth it?"
-- Here is the [Agentic AI architecture](agentic_architecture.md)
+- Here you can find the [Agentic AI architecture](phase_2_agentic_architecture.md)
 
 ## Phase xx - to cagetorize later
 
