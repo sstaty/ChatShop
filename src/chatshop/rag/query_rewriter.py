@@ -87,7 +87,10 @@ Translate the user's shopping message into a structured output with:
 - intent_summary: One sentence describing what the user wants.
 
 Use history to resolve references ("the second one", "under that budget").
-Only set filters when confident.\
+Only set filters when confident.
+
+If a "## Search feedback" block is provided, the previous search was unsatisfactory.
+Adjust the semantic_query and/or relax filters to address the stated issue.\
 """
 
 
@@ -136,24 +139,39 @@ class QueryRewriter:
         """
         self._llm = llm_client
 
-    def rewrite(self, user_message: str, history: list[dict] | None = None) -> RewrittenQuery:
-        """Translate a user message into a retrieval-optimised query.
+    def rewrite(
+        self,
+        history: str | list[dict],
+        evaluator_feedback: str | None = None,
+    ) -> RewrittenQuery:
+        """Translate a conversation into a retrieval-optimised query.
 
         Args:
-            user_message: The raw user message for the current turn.
-            history: Prior conversation turns in OpenAI message format,
-                used to resolve references like "the second one" or
-                "under that budget". Pass ``None`` or omit on the first turn.
+            history: Either a plain user message string (wrapped automatically)
+                or a full conversation in OpenAI message format. The full
+                history is used to resolve references like "the second one"
+                or "under that budget".
+            evaluator_feedback: Reason string from the Evaluator when the
+                previous search was unsatisfactory. Injected so the rewriter
+                can broaden or adjust the query on retry.
 
         Returns:
             :class:`RewrittenQuery` with an enriched semantic query, inferred
             filter hints, and a normalised intent summary.
         """
-        messages = [
-            {"role": "system", "content": _SYSTEM_PROMPT},
-            *(history or []),
-            {"role": "user", "content": user_message},
-        ]
+        if isinstance(history, str):
+            history = [{"role": "user", "content": history}]
+
+        messages = [{"role": "system", "content": _SYSTEM_PROMPT}]
+
+        if evaluator_feedback:
+            messages.append({
+                "role": "system",
+                "content": f"## Search feedback\n{evaluator_feedback}",
+            })
+
+        messages.extend(history)
+
         raw = self._llm.complete(messages, response_format=_RewriteSchema)
         data = json.loads(raw)
 
@@ -162,7 +180,7 @@ class QueryRewriter:
         fh["extra_filters"] = {k: v for k, v in hf.items() if v is not None}
 
         return RewrittenQuery(
-            semantic_query=data.get("semantic_query", user_message),
+            semantic_query=data.get("semantic_query", ""),
             filter_hints=fh,
             intent_summary=data.get("intent_summary", ""),
         )

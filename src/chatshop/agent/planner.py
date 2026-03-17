@@ -266,14 +266,7 @@ class Planner:
             )
 
         if action == "search":
-            # QueryRewriter.rewrite() takes (user_message, history) separately.
-            # history[:-1] are all prior turns; the rewriter reassembles them with
-            # the current message internally, preserving full conversational context
-            # for reference resolution ("the second one", "under that budget", etc.).
-            last_user_msg = next(
-                (m["content"] for m in reversed(history) if m["role"] == "user"), ""
-            )
-            rewritten = self._rewriter.rewrite(last_user_msg, history=history[:-1])
+            rewritten = self._rewriter.rewrite(history, evaluator_feedback=evaluator_feedback)
             fh = rewritten.filter_hints
             filters = SearchFilters(
                 max_price=fh.get("max_price"),

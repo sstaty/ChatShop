@@ -10,8 +10,6 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 
-import litellm
-
 from chatshop.config import settings
 
 
@@ -81,6 +79,7 @@ class LLMClient:
         if response_format is not None:
             kwargs["response_format"] = response_format
 
+        import litellm
         response = litellm.completion(**kwargs)
         return response.choices[0].message.content or ""
 
@@ -114,6 +113,7 @@ class LLMClient:
         if self._api_base:
             kwargs["api_base"] = self._api_base
 
+        import litellm
         response = litellm.completion(**kwargs)
         for chunk in response:
             content = getattr(chunk.choices[0].delta, "content", None)
