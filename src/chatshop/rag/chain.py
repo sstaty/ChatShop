@@ -1,3 +1,7 @@
+# DEPRECATED — Phase 1 orchestration layer.
+# Superseded by AgentLoop (src/chatshop/agent/agent_loop.py).
+# Will be deleted when gradio_app.py is wired to AgentLoop (Phase 2 UI task).
+
 from collections.abc import Iterator
 from dataclasses import dataclass
 

@@ -103,25 +103,45 @@ The Planner is the central reasoning component responsible for:
   "action": "search",
   "search_plan": {
       "semantic_query": string,
-      "filters": {...},
-      "sort_by": "rating" | "price_asc" | "price_desc"
+      "filters": {
+          "max_price": float | null,
+          "min_price": float | null,
+          "min_rating": float | null,
+          "extra_filters": {...}   ← domain-specific key-value pairs (e.g. wireless, anc)
+      },
+      "sort_by": "rating" | "price_asc" | "price_desc" | null
   },
   "reasoning_trace": string
 }
 ```
+
+Note on `sort_by`: applied as a post-vector re-sort within the already cosine-ranked result
+set. Use only for explicit user ordering requests ("cheapest ones", "highest rated").
+
+Note on `extra_filters`: domain-agnostic design — universal price/rating fields are typed;
+domain-specific attributes (e.g. `{"wireless": true, "anc": true}` for headphones,
+`{"screen_size_inches": 15.6}` for laptops) go into `extra_filters` so the schema stays
+valid across product categories.
 
 #### Respond
 
 ```
 {
   "action": "respond",
-  "response_strategy": "final_recommendation" |
+  "response_strategy": "catalog_with_recommendation" |
                        "tradeoff_explanation" |
                        "no_results" |
                        "informational",
   "reasoning_trace": string
 }
 ```
+
+Response strategy guide:
+
+- `catalog_with_recommendation` — present 3–5 products, call out one top pick with reasoning
+- `tradeoff_explanation` — compare 2–3 options head-to-head, explain when to choose each
+- `no_results` — nothing survived filtering after retries; explain why and suggest broadening
+- `informational` — answer conversational/educational query (e.g. "what is ANC?"); Planner skips retrieval
 
 Design principles:
 
@@ -260,32 +280,45 @@ This avoids artificial multi‑agent complexity while remaining extensible.
 
 ---
 
-## Suggested Module Architecture
+## Actual Module Architecture
+
+Skeleton implemented. Deviations from the original suggestion are noted.
 
 ```
-chatshop/
+src/chatshop/
 
     agent/
-        planner.py
-        evaluator.py
-        agent_loop.py
+        planner.py          ← PlannerOutput union, SearchFilters, SearchPlan, Planner
+        evaluator.py        ← EvaluatorOutput, Evaluator
+        agent_loop.py       ← LoopState, AgentLoop
 
-    retrieval/
-        hybrid_search.py
-        vector_store.py
+    rag/
+        retriever.py        ← Phase 1, unchanged
+        hybrid_search.py    ← SearchResult, HybridSearch (new)
+        query_rewriter.py   ← RewrittenQuery, QueryRewriter (new — moved here from domain/)
+        chain.py            ← DEPRECATED: Phase 1 RAGChain; deleted when UI wired to AgentLoop
+        prompt.py           ← SYSTEM_PROMPT, build_user_message; kept for response synthesis
 
-    domain/
-        query_rewriter.py
-        product_schema.py
-
-    ui/
-        gradio_app.py
-        reasoning_panel.py
+    vectorstore/
+        chroma.py           ← Phase 1, unchanged (was "retrieval/vector_store.py" in suggestion)
 
     infra/
-        llm_client.py
-        config.py
+        llm_client.py       ← LLMClient (centralises all LiteLLM calls)
+
+    data/                   ← Phase 1, unchanged (was "domain/product_schema.py" in suggestion)
+    embeddings/             ← Phase 1, unchanged
+    config.py               ← Phase 1, unchanged (was "infra/config.py" in suggestion)
+    ui/
+        gradio_app.py       ← Phase 1, still wired to RAGChain; updated in UI integration task
 ```
+
+Deviations from original suggestion:
+
+- `retrieval/` package not created — `hybrid_search.py` and `query_rewriter.py` placed in existing `rag/` package
+- `domain/` package not created — `query_rewriter.py` belongs in the retrieval pipeline, not a separate domain layer; `product_schema.py` already exists as `data/models.py`
+- `infra/config.py` not created — `config.py` already exists at package root
+- `ui/reasoning_panel.py` deferred — reasoning panel logic stays in `gradio_app.py` for now
+- `retrieval/vector_store.py` not created — already exists as `vectorstore/chroma.py`
 
 ---
 

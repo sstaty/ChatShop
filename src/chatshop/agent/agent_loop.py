@@ -35,7 +35,7 @@ from chatshop.data.models import Product
 if TYPE_CHECKING:
     from chatshop.agent.evaluator import Evaluator, EvaluatorOutput
     from chatshop.agent.planner import Planner, PlannerOutput
-    from chatshop.domain.query_rewriter import QueryRewriter
+    from chatshop.rag.query_rewriter import QueryRewriter
     from chatshop.rag.hybrid_search import HybridSearch
 
 

@@ -10,7 +10,7 @@ modules only produce evidence.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Literal, Union
+from typing import Any, Literal, Union
 
 from chatshop.data.models import Product
 from chatshop.infra.llm_client import LLMClient
@@ -27,15 +27,27 @@ class SearchFilters:
 
     All fields are optional — only populated when the planner has enough
     evidence to apply that constraint without over-filtering.
+
+    Universal fields (price, rating) are typed. Domain-specific attributes
+    (e.g. wireless, ANC for headphones; screen size for laptops) go into
+    ``extra_filters`` so the schema stays valid across product categories.
     """
 
     max_price: float | None = None
     min_price: float | None = None
     min_rating: float | None = None
-    wireless: bool | None = None
-    anc: bool | None = None
-    waterproof: bool | None = None
-    use_case: str | None = None
+    extra_filters: dict[str, Any] = field(default_factory=dict)
+    """Free-form domain-specific metadata constraints.
+
+    Keys must match ChromaDB metadata field names on the ingested products.
+
+    Examples::
+
+        # headphones
+        {"wireless": True, "anc": True}
+        # laptops
+        {"screen_size_inches": 15.6, "gpu": True}
+    """
 
 
 @dataclass
@@ -49,7 +61,13 @@ class SearchPlan:
     """Hard metadata constraints applied before vector search."""
 
     sort_by: Literal["rating", "price_asc", "price_desc"] | None = None
-    """Optional deterministic sort applied to the filtered candidate pool."""
+    """Optional post-vector re-sort applied within the already-ranked result set.
+
+    Cosine similarity ranking runs first; ``sort_by`` then re-orders within
+    that semantically relevant set. Use only when the user explicitly requests
+    an ordering (e.g. "cheapest ones under $100", "highest rated option").
+    Leave ``None`` to preserve the vector similarity order.
+    """
 
 
 # ---------------------------------------------------------------------------
@@ -85,12 +103,24 @@ class RespondAction:
 
     action: Literal["respond"]
     response_strategy: Literal[
-        "final_recommendation",
+        "catalog_with_recommendation",
         "tradeoff_explanation",
         "no_results",
         "informational",
     ]
-    """Controls the tone and structure of the response synthesis prompt."""
+    """Controls the tone and structure of the response synthesis prompt.
+
+    ``catalog_with_recommendation``
+        Present 3–5 retrieved products; call out one top pick with reasoning.
+    ``tradeoff_explanation``
+        Compare 2–3 options head-to-head; explain when to choose each.
+    ``no_results``
+        No products survived filtering even after retries; tell the user why
+        and suggest how to broaden the search.
+    ``informational``
+        Answer a conversational or educational query (e.g. "what is ANC?")
+        without presenting a product catalog. Planner skips retrieval entirely.
+    """
     reasoning_trace: str
     """Internal chain-of-thought explaining why this response strategy fits."""
 

@@ -37,7 +37,7 @@ class RewrittenQuery:
 
     Example::
 
-        {"wireless": True, "max_price": 150.0, "use_case": "sport"}
+        {"max_price": 150.0, "extra_filters": {"wireless": True, "use_case": "sport"}}
     """
 
     intent_summary: str = ""
