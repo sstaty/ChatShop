@@ -97,6 +97,8 @@ class SearchAction:
     """Full retrieval specification to pass to HybridSearch."""
     reasoning_trace: str
     """Internal chain-of-thought explaining the retrieval strategy."""
+    intent_summary: str = ""
+    """Normalised user intent from QueryRewriter; forwarded to the Evaluator by AgentLoop."""
 
 
 @dataclass
@@ -282,6 +284,7 @@ class Planner:
                     sort_by=None,
                 ),
                 reasoning_trace=trace,
+                intent_summary=rewritten.intent_summary,
             )
 
         # respond
