@@ -9,11 +9,16 @@ modules only produce evidence.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from typing import Any, Literal, Union
 
+from pydantic import BaseModel, ConfigDict
+from pydantic import Field as PydanticField
+
 from chatshop.data.models import Product
 from chatshop.infra.llm_client import LLMClient
+from chatshop.rag.query_rewriter import QueryRewriter
 
 
 # ---------------------------------------------------------------------------
@@ -127,6 +132,63 @@ PlannerOutput = Union[ClarifyAction, SearchAction, RespondAction]
 
 
 # ---------------------------------------------------------------------------
+# Private Pydantic schema — used only for structured LLM output
+# ---------------------------------------------------------------------------
+
+
+class _PlannerSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    action: Literal["clarify", "search", "respond"]
+    reasoning_trace: str
+    question: str | None = None
+    response_strategy: Literal[
+        "catalog_with_recommendation",
+        "tradeoff_explanation",
+        "no_results",
+        "informational",
+    ] | None = None
+
+
+# ---------------------------------------------------------------------------
+# System prompt
+# ---------------------------------------------------------------------------
+
+_SYSTEM_PROMPT = """\
+You are the planning agent for a headphone shopping assistant. Your only job
+is to decide the next action. You do NOT build search queries or rank products.
+
+Decide one of three actions:
+
+clarify
+  The user's intent is too vague to search meaningfully — no product attributes
+  or use-case can be inferred (e.g. bare "headphones" with no other context).
+  Set `question` to a single focused question that resolves the ambiguity.
+  Do NOT clarify if you can make a reasonable search; prefer searching.
+
+search
+  The intent is clear but results are missing or the evaluator says they are
+  unsatisfactory. The search query will be built separately — you only decide
+  that a search should happen.
+
+respond
+  Sufficient evidence exists to answer the user. Choose a response_strategy:
+    catalog_with_recommendation  — present 3–5 products, highlight one top pick
+    tradeoff_explanation         — compare 2–3 options head-to-head
+    no_results                   — nothing matched even after retries; explain why
+    informational                — educational/conversational query, no products needed
+
+Rules:
+- Always write reasoning_trace before deciding action.
+- If retrieved products exist and evaluator feedback is positive → respond.
+- If retrieved products exist but evaluator feedback is negative → search again.
+- If evaluator feedback has signalled failure multiple times → respond with no_results.
+- If the query is clearly informational (e.g. "what is ANC?") → respond with informational immediately.
+- Prefer search over clarify whenever a reasonable query can be inferred.\
+"""
+
+
+# ---------------------------------------------------------------------------
 # Planner class
 # ---------------------------------------------------------------------------
 
@@ -138,12 +200,14 @@ class Planner:
     ranks products or produces the final user-facing answer directly.
     """
 
-    def __init__(self, llm_client: LLMClient) -> None:
+    def __init__(self, llm_client: LLMClient, query_rewriter: QueryRewriter) -> None:
         """
         Args:
             llm_client: Shared LLM client used to call the planning prompt.
+            query_rewriter: Used to build the SearchPlan when action is ``search``.
         """
-        ...
+        self._llm = llm_client
+        self._rewriter = query_rewriter
 
     def plan(
         self,
@@ -166,4 +230,70 @@ class Planner:
             A :class:`ClarifyAction`, :class:`SearchAction`, or
             :class:`RespondAction` depending on what the Planner decides.
         """
-        ...
+        if isinstance(history, str):
+            history = [{"role": "user", "content": history}]
+
+        messages: list[dict] = [{"role": "system", "content": _SYSTEM_PROMPT}]
+
+        if previous_results:
+            context_block = "\n\n---\n\n".join(
+                p.to_context_text() for p in previous_results
+            )
+            messages.append({
+                "role": "system",
+                "content": f"## Retrieved products (most recent search)\n\n{context_block}",
+            })
+
+        if evaluator_feedback:
+            messages.append({
+                "role": "system",
+                "content": f"## Evaluator feedback\n{evaluator_feedback}",
+            })
+
+        messages.extend(history)
+
+        raw = self._llm.complete(messages, response_format=_PlannerSchema)
+        data = json.loads(raw)
+
+        action = data["action"]
+        trace = data.get("reasoning_trace", "")
+
+        if action == "clarify":
+            return ClarifyAction(
+                action="clarify",
+                question=data["question"],
+                reasoning_trace=trace,
+            )
+
+        if action == "search":
+            # QueryRewriter.rewrite() takes (user_message, history) separately.
+            # history[:-1] are all prior turns; the rewriter reassembles them with
+            # the current message internally, preserving full conversational context
+            # for reference resolution ("the second one", "under that budget", etc.).
+            last_user_msg = next(
+                (m["content"] for m in reversed(history) if m["role"] == "user"), ""
+            )
+            rewritten = self._rewriter.rewrite(last_user_msg, history=history[:-1])
+            fh = rewritten.filter_hints
+            filters = SearchFilters(
+                max_price=fh.get("max_price"),
+                min_price=fh.get("min_price"),
+                min_rating=fh.get("min_rating"),
+                extra_filters=fh.get("extra_filters", {}),
+            )
+            return SearchAction(
+                action="search",
+                search_plan=SearchPlan(
+                    semantic_query=rewritten.semantic_query,
+                    filters=filters,
+                    sort_by=None,
+                ),
+                reasoning_trace=trace,
+            )
+
+        # respond
+        return RespondAction(
+            action="respond",
+            response_strategy=data["response_strategy"],
+            reasoning_trace=trace,
+        )
