@@ -34,9 +34,8 @@ def main() -> None:
         print(f"Top {args.top_k} results for: '{args.query}'\n" + "-" * 50)
         for i, product in enumerate(results, 1):
             price = f"${product.price:.2f}" if product.price else "N/A"
-            rating = f"{product.rating}/5" if product.rating else "N/A"
             print(f"[{i}] {product.title}")
-            print(f"    Price: {price}  Rating: {rating}")
+            print(f"    Price: {price}  Wireless: {product.wireless}  ANC: {product.anc}")
             print(f"    ID: {product.product_id}\n")
     else:
         # Raw peek at the collection

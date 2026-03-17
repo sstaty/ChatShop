@@ -1,39 +1,57 @@
 """
 Query rewriter module — semantic translation layer between user intent and retrieval.
 
-Translates subjective or colloquial user language into technical attributes
-and a clean semantic query string. This improves recall by reducing dependence
-on embedding similarity alone.
+Translates subjective or colloquial user language into headphone-specific technical
+attributes and a clean semantic query string. This improves recall by reducing
+dependence on embedding similarity alone.
 
 Examples of rewrites:
-    "for the gym"           → stable fit, sweat resistance, wireless, sport use-case
-    "music feels alive"     → bass emphasis, warm tuning, high driver quality
-    "something for commute" → noise isolation or ANC, comfort, portable form factor
+    "for the gym"           → wireless sport earbuds sweat-resistant stable fit
+    "music feels alive"     → warm bass emphasis high driver quality immersive sound
+    "something for commute" → active noise cancellation portable long battery life
 """
 
 from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
+from typing import Literal
 
-from pydantic import BaseModel, Field as PydanticField
+from pydantic import BaseModel, ConfigDict
+from pydantic import Field as PydanticField
 
 from chatshop.infra.llm_client import LLMClient
 
 
 # ---------------------------------------------------------------------------
-# Private Pydantic schema — used only for structured LLM output
+# Private Pydantic schemas — used only for structured LLM output
 # ---------------------------------------------------------------------------
 
 
+class _HeadphoneFilters(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    wireless: bool | None = None
+    anc: bool | None = None
+    type: Literal["over-ear", "in-ear", "open-back"] | None = None
+    use_cases: Literal["travel", "office", "studio", "sport", "gaming"] | None = None
+    min_battery_hours: int | None = None
+
+
 class _FilterHints(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     max_price: float | None = None
     min_price: float | None = None
     min_rating: float | None = None
-    extra_filters: dict = PydanticField(default_factory=dict)
+    headphone_filters: _HeadphoneFilters = PydanticField(
+        default_factory=_HeadphoneFilters
+    )
 
 
 class _RewriteSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     semantic_query: str
     filter_hints: _FilterHints = PydanticField(default_factory=_FilterHints)
     intent_summary: str = ""
@@ -44,25 +62,31 @@ class _RewriteSchema(BaseModel):
 # ---------------------------------------------------------------------------
 
 _SYSTEM_PROMPT = """\
-You are a semantic query rewriter for a product search system.
+You are a semantic query rewriter for a headphone shopping assistant.
 
-Your job: translate the user's shopping message into a structured output with:
+Translate the user's shopping message into a structured output with:
 
 - semantic_query: Enriched natural-language query for vector similarity search.
-  Expand colloquial language to technical attributes (e.g. "for the gym" ->
-  "wireless earbuds sweat-resistant secure stable fit sport use-case"). Max 60 words.
+  Expand colloquial language to headphone-specific attributes:
+    "for the gym"       -> wireless sport earbuds sweat-resistant stable fit
+    "music feels alive" -> warm bass high driver quality immersive sound
+    "commute"           -> active noise cancellation portable long battery life
+  Max 60 words.
 
-- filter_hints: Inferred metadata constraints. Only populate when confident:
-    - max_price / min_price (float) -- from explicit budget mentions
-    - min_rating (float) -- from quality language like "well-rated" -> 4.0
-    - extra_filters (dict) -- domain-specific attrs, e.g.
-      {"wireless": true, "anc": true, "use_case": "sport"}
+- filter_hints: Inferred constraints -- only populate when clearly evidenced:
+    max_price / min_price (float) -- from budget mentions
+    min_rating (float)            -- "well-rated" -> 4.0, "top-rated" -> 4.5
+    headphone_filters:
+      wireless (bool)          -- "wireless"/"bluetooth" -> true; "wired" -> false
+      anc (bool)               -- "noise cancelling"/"ANC"/"quiet" -> true
+      type (str)               -- "over-ear" | "in-ear" | "open-back"
+      use_cases (str)          -- "travel" | "office" | "studio" | "sport" | "gaming"
+      min_battery_hours (int)  -- "all day" -> 20; explicit hours -> that number
 
-- intent_summary: One sentence describing what the user wants (used by the
-  Evaluator to judge whether results satisfy the request).
+- intent_summary: One sentence describing what the user wants.
 
-Use conversation history to resolve references like "the second one", "under that
-budget", or "cheaper option". Only add filter constraints when clearly evidenced.\
+Use history to resolve references ("the second one", "under that budget").
+Only set filters when confident.\
 """
 
 
@@ -85,7 +109,7 @@ class RewrittenQuery:
 
     Example::
 
-        {"max_price": 150.0, "extra_filters": {"wireless": True, "use_case": "sport"}}
+        {"max_price": 150.0, "extra_filters": {"wireless": True, "anc": True, "use_cases": "sport"}}
     """
 
     intent_summary: str = ""
@@ -111,14 +135,14 @@ class QueryRewriter:
         """
         self._llm = llm_client
 
-    def rewrite(self, user_message: str, history: list[dict]) -> RewrittenQuery:
+    def rewrite(self, user_message: str, history: list[dict] | None = None) -> RewrittenQuery:
         """Translate a user message into a retrieval-optimised query.
 
         Args:
             user_message: The raw user message for the current turn.
             history: Prior conversation turns in OpenAI message format,
                 used to resolve references like "the second one" or
-                "under that budget".
+                "under that budget". Pass ``None`` or omit on the first turn.
 
         Returns:
             :class:`RewrittenQuery` with an enriched semantic query, inferred
@@ -126,18 +150,18 @@ class QueryRewriter:
         """
         messages = [
             {"role": "system", "content": _SYSTEM_PROMPT},
-            *history,
+            *(history or []),
             {"role": "user", "content": user_message},
         ]
         raw = self._llm.complete(messages, response_format=_RewriteSchema)
-        try:
-            data = json.loads(raw)
-        except json.JSONDecodeError:
-            return RewrittenQuery(semantic_query=user_message)
+        data = json.loads(raw)
 
-        hints = data.get("filter_hints", {})
+        fh = data.get("filter_hints", {})
+        hf = fh.pop("headphone_filters", {}) or {}
+        fh["extra_filters"] = {k: v for k, v in hf.items() if v is not None}
+
         return RewrittenQuery(
             semantic_query=data.get("semantic_query", user_message),
-            filter_hints=hints if isinstance(hints, dict) else {},
+            filter_hints=fh,
             intent_summary=data.get("intent_summary", ""),
         )

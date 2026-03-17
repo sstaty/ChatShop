@@ -2,7 +2,7 @@
 
 import pytest
 
-from chatshop.data.cleaner import clean_products, _clean_text, _parse_float, _parse_int
+from chatshop.data.cleaner import clean_headphones, _clean_text, _parse_float, _parse_int
 
 
 # ── _clean_text ───────────────────────────────────────────────────────────────
@@ -51,69 +51,70 @@ def test_parse_int_none():
     assert _parse_int(None) is None
 
 
-# ── clean_products ────────────────────────────────────────────────────────────
+# ── clean_headphones ──────────────────────────────────────────────────────────
 
 def _make_record(**kwargs) -> dict:
-    base = {"asin": "B001TEST01", "title": "Test Product", "price": "29.99", "stars": "4.2"}
+    base = {
+        "id": "1",
+        "brand": "Sony",
+        "name": "WH-1000XM5",
+        "price_usd": 349,
+        "type": "over-ear",
+        "wireless": True,
+        "anc": True,
+        "battery_hours": 30,
+        "waterproof_rating": None,
+        "driver_size_mm": 30,
+        "use_cases": ["travel", "office"],
+        "description": "Great headphones.",
+    }
     base.update(kwargs)
     return base
 
 
-def test_clean_products_basic():
-    records = [_make_record()]
-    products = clean_products(records)
+def test_clean_headphones_basic():
+    products = clean_headphones([_make_record()])
     assert len(products) == 1
     p = products[0]
-    assert p.product_id == "B001TEST01"
-    assert p.title == "Test Product"
-    assert p.price == pytest.approx(29.99)
-    assert p.rating == pytest.approx(4.2)
+    assert p.product_id == "1"
+    assert p.title == "Sony WH-1000XM5"
+    assert p.price == pytest.approx(349.0)
+    assert p.brand == "Sony"
+    assert p.wireless is True
+    assert p.anc is True
+    assert p.battery_hours == 30
+    assert p.use_cases == ["travel", "office"]
 
 
-def test_clean_products_deduplicates():
-    records = [_make_record(), _make_record()]  # same asin twice
-    products = clean_products(records)
+def test_clean_headphones_deduplicates():
+    products = clean_headphones([_make_record(), _make_record()])
     assert len(products) == 1
 
 
-def test_clean_products_drops_missing_asin():
-    records = [_make_record(asin=None)]
-    assert clean_products(records) == []
+def test_clean_headphones_drops_missing_id():
+    assert clean_headphones([_make_record(id=None)]) == []
 
 
-def test_clean_products_drops_missing_title():
-    records = [_make_record(title=None)]
-    assert clean_products(records) == []
+def test_clean_headphones_drops_missing_name():
+    assert clean_headphones([_make_record(name=None)]) == []
 
 
-def test_clean_products_drops_short_title():
-    records = [_make_record(title="AB")]
-    assert clean_products(records) == []
+def test_clean_headphones_wired_has_no_battery():
+    p = clean_headphones([_make_record(battery_hours=None, wireless=False)])[0]
+    assert p.battery_hours is None
+    assert p.wireless is False
 
 
-def test_clean_products_strips_html_from_title():
-    records = [_make_record(title="<b>Cool Gadget</b>")]
-    products = clean_products(records)
-    assert products[0].title == "Cool Gadget"
+def test_clean_headphones_use_cases_list_to_list():
+    p = clean_headphones([_make_record(use_cases=["sport", "gaming"])])[0]
+    assert p.use_cases == ["sport", "gaming"]
 
 
-def test_clean_products_ignores_invalid_rating():
-    records = [_make_record(stars="99.0")]
-    products = clean_products(records)
-    assert products[0].rating is None
+def test_clean_headphones_waterproof_rating_none():
+    p = clean_headphones([_make_record(waterproof_rating=None)])[0]
+    assert p.waterproof_rating is None
 
 
-def test_clean_products_ignores_zero_price():
-    records = [_make_record(price="0.00")]
-    products = clean_products(records)
-    assert products[0].price is None
-
-
-def test_clean_products_multiple_unique():
-    records = [
-        _make_record(asin="B001", title="Product One"),
-        _make_record(asin="B002", title="Product Two"),
-    ]
-    products = clean_products(records)
-    assert len(products) == 2
-    assert {p.product_id for p in products} == {"B001", "B002"}
+def test_clean_headphones_waterproof_rating_value():
+    p = clean_headphones([_make_record(waterproof_rating="IPX4")])[0]
+    assert p.waterproof_rating == "IPX4"

@@ -43,10 +43,7 @@ class SearchFilters:
 
     Examples::
 
-        # headphones
-        {"wireless": True, "anc": True}
-        # laptops
-        {"screen_size_inches": 15.6, "gpu": True}
+        {"wireless": True, "anc": True, "type": "over-ear", "use_cases": "sport"}
     """
 
 

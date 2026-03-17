@@ -3,10 +3,11 @@ import chromadb
 from chatshop.config import settings
 from chatshop.data.models import Product
 
-# Keys stored in metadata that map to base Product fields (not extra_attrs)
-_BASE_METADATA_KEYS = frozenset(
-    {"title", "category", "price", "rating", "rating_count", "description"}
-)
+_METADATA_KEYS = frozenset({
+    "title", "description", "price",
+    "brand", "type", "wireless", "anc",
+    "battery_hours", "waterproof_rating", "driver_size_mm", "use_cases",
+})
 
 
 class ChromaStore:
@@ -78,18 +79,23 @@ class ChromaStore:
 
         for product_id, meta in zip(ids, metadatas):
             price = meta.get("price")
-            rating = meta.get("rating")
-            extra_attrs = {k: v for k, v in meta.items() if k not in _BASE_METADATA_KEYS}
+            battery = meta.get("battery_hours")
+            driver = meta.get("driver_size_mm")
+            use_cases_raw = meta.get("use_cases", "")
             products.append(
                 Product(
                     product_id=product_id,
                     title=meta.get("title", ""),
                     description=meta.get("description", ""),
-                    category=meta.get("category", ""),
                     price=price if price and price > 0 else None,
-                    rating=rating if rating and rating > 0 else None,
-                    rating_count=meta.get("rating_count") or None,
-                    extra_attrs=extra_attrs,
+                    brand=meta.get("brand", ""),
+                    type=meta.get("type", ""),
+                    wireless=meta.get("wireless"),
+                    anc=meta.get("anc"),
+                    battery_hours=battery if battery and battery > 0 else None,
+                    waterproof_rating=meta.get("waterproof_rating") or None,
+                    driver_size_mm=driver if driver and driver > 0 else None,
+                    use_cases=[v.strip() for v in use_cases_raw.split(",") if v.strip()],
                 )
             )
         return products

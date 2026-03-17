@@ -1,7 +1,5 @@
 """Integration tests for ChromaStore using a temporary directory."""
 
-import tempfile
-
 import pytest
 
 from chatshop.data.models import Product
@@ -14,8 +12,12 @@ def _make_product(product_id: str, title: str) -> Product:
         title=title,
         description=f"Description for {title}",
         price=99.99,
-        rating=4.5,
-        rating_count=100,
+        brand="TestBrand",
+        type="over-ear",
+        wireless=True,
+        anc=False,
+        battery_hours=20,
+        use_cases=["travel", "office"],
     )
 
 
@@ -43,7 +45,7 @@ def test_upsert_empty_is_safe(store):
 
 
 def test_query_returns_products(store):
-    products = [_make_product(f"B00{i}", f"Laptop {i}") for i in range(3)]
+    products = [_make_product(f"B00{i}", f"Headphone {i}") for i in range(3)]
     vectors = [_zero_vector() for _ in products]
     store.upsert(products, vectors)
 
@@ -62,7 +64,8 @@ def test_query_product_fields(store):
     assert result.product_id == "BABC123"
     assert result.title == "Noise Cancelling Headphones"
     assert result.price == pytest.approx(99.99)
-    assert result.rating == pytest.approx(4.5)
+    assert result.wireless is True
+    assert result.use_cases == ["travel", "office"]
 
 
 def test_upsert_is_idempotent(store):

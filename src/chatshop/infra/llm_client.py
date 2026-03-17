@@ -44,7 +44,7 @@ class LLMClient:
 
     def complete(
         self,
-        messages: list[dict],
+        messages: str | list[dict],
         response_format: type | None = None,
         temperature: float = 0.2,
     ) -> str:
@@ -56,7 +56,8 @@ class LLMClient:
         synthesis — should pass a higher value explicitly.
 
         Args:
-            messages: OpenAI-style message list, e.g.
+            messages: Either a plain string (wrapped as a single user message)
+                or an OpenAI-style message list, e.g.
                 ``[{"role": "user", "content": "..."}]``.
             response_format: Optional Pydantic model class to request
                 structured JSON output. LiteLLM passes this to the provider's
@@ -67,6 +68,8 @@ class LLMClient:
             The assistant content string, or a raw JSON string when
             ``response_format`` is supplied.
         """
+        if isinstance(messages, str):
+            messages = [{"role": "user", "content": messages}]
         kwargs: dict = dict(
             model=self._model,
             messages=messages,
@@ -83,7 +86,7 @@ class LLMClient:
 
     def stream(
         self,
-        messages: list[dict],
+        messages: str | list[dict],
         temperature: float = 0.7,
     ) -> Iterator[str]:
         """Yield assistant reply tokens one at a time.
@@ -93,12 +96,14 @@ class LLMClient:
         is desirable.
 
         Args:
-            messages: OpenAI-style message list.
+            messages: Either a plain string or an OpenAI-style message list.
             temperature: Sampling temperature.
 
         Yields:
             Individual text chunks as they arrive from the provider.
         """
+        if isinstance(messages, str):
+            messages = [{"role": "user", "content": messages}]
         kwargs: dict = dict(
             model=self._model,
             messages=messages,
