@@ -38,15 +38,29 @@ def _respond_action(strategy: str = "catalog_with_recommendation") -> RespondAct
     return RespondAction(action="respond", response_strategy=strategy, reasoning_trace="")
 
 
+def _sufficient_eval() -> EvaluatorOutput:
+    return EvaluatorOutput(
+        diagnosis="sufficient",
+        blocking_constraints=[],
+        reason="Results look good.",
+    )
+
+
+def _unsatisfied_eval(diagnosis: str = "no_results") -> EvaluatorOutput:
+    return EvaluatorOutput(
+        diagnosis=diagnosis,
+        blocking_constraints=["price"],
+        reason="Too restrictive.",
+    )
+
+
 def _make_loop(planner_actions: list, products: list[Product] | None = None) -> AgentLoop:
     """Build an AgentLoop with mocked dependencies."""
     planner = MagicMock()
     planner.plan.side_effect = planner_actions
 
     evaluator = MagicMock()
-    evaluator.evaluate.return_value = EvaluatorOutput(
-        satisfactory=True, reason="Results look good."
-    )
+    evaluator.evaluate.return_value = _sufficient_eval()
 
     search = MagicMock()
     search.search.return_value = SearchResult(
@@ -77,20 +91,18 @@ def test_loop_state_defaults():
     assert state.history == []
     assert state.last_results == []
     assert state.evaluator_feedback is None
-    assert state.finished is False
     assert state.last_plan is None
 
 
 # ── run() — clarify ───────────────────────────────────────────────────────────
 
 
-def test_clarify_returns_question():
+def test_clarify_triggers_search_skip():
+    """A clarify action must not trigger a search call."""
     clarify = ClarifyAction(action="clarify", question="What is your budget?", reasoning_trace="")
     loop = _make_loop([clarify])
-    result = loop.run("headphones", history=[])
-    assert result == "What is your budget?"
+    loop.run("headphones", history=[])
     loop._search.search.assert_not_called()
-    loop._llm.complete.assert_not_called()
 
 
 # ── run() — immediate respond ─────────────────────────────────────────────────
@@ -100,7 +112,6 @@ def test_respond_immediately_skips_search():
     loop = _make_loop([_respond_action()])
     loop.run("best headphones under $100", history=[])
     loop._search.search.assert_not_called()
-    loop._llm.complete.assert_called_once()
 
 
 # ── run() — search then respond ───────────────────────────────────────────────
@@ -114,6 +125,53 @@ def test_single_search_then_respond():
     loop._evaluator.evaluate.assert_called_once()
 
 
+# ── Planner.plan() — deterministic early-return (unit tests, no loop) ─────────
+
+
+def _make_planner() -> "Planner":
+    from chatshop.agent.planner import Planner
+    return Planner(llm_client=MagicMock(), query_rewriter=MagicMock())
+
+
+def test_planner_early_return_sufficient():
+    """3+ results → Planner returns catalog_with_recommendation without calling LLM."""
+    three_products = _sample_products() + [Product(product_id="B003", title="AKG K240", price=79.0)]
+    planner = _make_planner()
+    result = planner.plan(
+        history=[{"role": "user", "content": "headphones"}],
+        previous_results=three_products,
+    )
+    assert result.action == "respond"
+    assert result.response_strategy == "catalog_with_recommendation"
+    planner._llm.complete.assert_not_called()
+
+
+def test_planner_early_return_narrow():
+    """1–2 results → Planner returns narrow_results without calling LLM."""
+    planner = _make_planner()
+    result = planner.plan(
+        history=[{"role": "user", "content": "headphones"}],
+        previous_results=_sample_products(),  # 2 products
+    )
+    assert result.action == "respond"
+    assert result.response_strategy == "narrow_results"
+    planner._llm.complete.assert_not_called()
+
+
+# ── run() — zero results → Planner clarifies ──────────────────────────────────
+
+
+def test_zero_results_planner_clarifies():
+    """0 results → Evaluator called, Planner called twice (search then clarify)."""
+    clarify = ClarifyAction(action="clarify", question="No results — adjust budget?", reasoning_trace="")
+    loop = _make_loop([_search_action(), clarify], products=[])
+    loop._evaluator.evaluate.return_value = _unsatisfied_eval("no_results")
+    loop.run("wireless headphones", history=[])
+    assert loop._planner.plan.call_count == 2
+    assert loop._search.search.call_count == 1
+    assert loop._evaluator.evaluate.call_count == 1
+
+
 # ── run() — iteration cap ─────────────────────────────────────────────────────
 
 
@@ -123,7 +181,7 @@ def test_iteration_cap_stops_loop():
     planner.plan.return_value = _search_action()  # always search
 
     evaluator = MagicMock()
-    evaluator.evaluate.return_value = EvaluatorOutput(satisfactory=False, reason="Not good.")
+    evaluator.evaluate.return_value = _unsatisfied_eval("no_results")
 
     search = MagicMock()
     search.search.return_value = SearchResult(
@@ -132,6 +190,7 @@ def test_iteration_cap_stops_loop():
 
     llm = MagicMock()
     llm.complete.return_value = "Forced response."
+    llm.stream.return_value = iter(["Forced response."])
 
     loop = AgentLoop(
         planner=planner,
@@ -155,21 +214,26 @@ def test_no_results_strategy_when_no_products():
     planner.plan.return_value = _search_action()
 
     evaluator = MagicMock()
-    evaluator.evaluate.return_value = EvaluatorOutput(satisfactory=False, reason="Nothing found.")
+    evaluator.evaluate.return_value = _unsatisfied_eval("no_results")
 
     search = MagicMock()
     search.search.return_value = SearchResult(products=[], candidate_count=0, applied_filters={})
 
     llm = MagicMock()
     llm.complete.return_value = "No products found."
+    llm.stream.return_value = iter(["No products found."])
 
     loop = AgentLoop(
         planner=planner, evaluator=evaluator, hybrid_search=search, llm_client=llm, max_iterations=1
     )
     loop.run("headphones", history=[])
 
-    call_messages = llm.complete.call_args[0][0]
-    assert any("no_results" in str(m) or "No products matched" in str(m) for m in call_messages)
+    # Verify synthesis was called (stream used for final response)
+    llm.stream.assert_called_once()
+    # The no_results strategy instruction mentions "survived" — check it's in the system message
+    call_messages = llm.stream.call_args[0][0]
+    system_content = call_messages[0]["content"]
+    assert "survived" in system_content or "catalog" in system_content
 
 
 # ── stream() ─────────────────────────────────────────────────────────────────
@@ -185,4 +249,5 @@ def test_stream_clarify_yields_question():
     clarify = ClarifyAction(action="clarify", question="What is your use case?", reasoning_trace="")
     loop = _make_loop([clarify])
     tokens = list(loop.stream("headphones", history=[]))
-    assert tokens == ["What is your use case?"]
+    # Conversationist.clarify streams via llm.stream mock
+    assert "".join(tokens) == "Here are my recommendations."

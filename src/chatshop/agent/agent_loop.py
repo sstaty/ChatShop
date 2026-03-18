@@ -21,10 +21,8 @@ Reference loop:
         if plan.action == "search":
             results = hybrid_search(plan.search_plan)
             evaluation = evaluator(results, plan.intent_summary)
-            if evaluation.satisfactory:
-                return synthesize("catalog_with_recommendation", results)
-            evaluator_feedback = evaluation.reason
-            continue
+            evaluator_feedback = format_feedback(evaluation, search_plan)
+            continue  # Planner decides respond/clarify on next iteration
 """
 
 from __future__ import annotations
@@ -37,9 +35,9 @@ from chatshop.agent.planner import SearchFilters
 from chatshop.data.models import Product
 
 if TYPE_CHECKING:
-    from chatshop.agent.evaluator import Evaluator
-    from chatshop.agent.planner import Planner, PlannerOutput
-    from chatshop.rag.hybrid_search import HybridSearch
+    from chatshop.agent.evaluator import Evaluator, EvaluatorOutput
+    from chatshop.agent.planner import Planner, PlannerOutput, SearchPlan
+    from chatshop.rag.hybrid_search import HybridSearch, SearchResult
     from chatshop.infra.llm_client import LLMClient
 
 
@@ -71,6 +69,24 @@ def _format_filters(filters: SearchFilters) -> str:
     for k, v in filters.extra_filters.items():
         parts.append(f"{k}={v}")
     return " · ".join(parts) if parts else "none"
+
+
+def _format_feedback(
+    evaluation: "EvaluatorOutput",
+    sp: "SearchPlan",
+    candidate_count: int,
+) -> str:
+    """Format evaluator output into a feedback string for the next Planner call."""
+    constraints = ", ".join(evaluation.blocking_constraints) or "unknown"
+    return (
+        f"Diagnosis: {evaluation.diagnosis}\n"
+        f"Blocking constraints: {constraints}\n"
+        f"Reason: {evaluation.reason}\n\n"
+        f"Previous search:\n"
+        f'  Semantic: "{sp.semantic_query}"\n'
+        f"  Filters: {_format_filters(sp.filters)}\n"
+        f"  Candidates retrieved: {candidate_count}"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -170,13 +186,6 @@ class AgentLoop:
             # action == "search"
             sp = plan.search_plan
 
-            # Hard filter relaxation: if the previous search returned 0 candidates,
-            # drop domain-specific extra_filters (type, anc, wireless) before retrying.
-            # max_price is user-stated and kept. This is enforced in code, not via prompt,
-            # because LLMs reliably re-apply explicit user constraints on retries.
-            if not state.last_results and state.evaluator_feedback is not None:
-                sp.filters.extra_filters = {}
-
             yield TraceEvent(
                 f"Intent: {plan.intent_summary}\n"
                 f'Semantic: "{sp.semantic_query}"\n'
@@ -191,28 +200,16 @@ class AgentLoop:
                 candidate_count=result.candidate_count,
             )
 
-            verdict = "Satisfactory" if evaluation.satisfactory else "Not satisfactory — retrying"
             yield TraceEvent(
                 f"Retrieved {result.candidate_count} candidates\n"
-                f"Evaluator: {verdict}"
+                f"Evaluator: {evaluation.label}"
             )
 
             state.last_results = result.products
-            state.evaluator_feedback = (
-                evaluation.verdict()
-                + f"\n\nPrevious search:"
-                + f'\n  Semantic: "{sp.semantic_query}"'
-                + f"\n  Filters: {_format_filters(sp.filters)}"
-                + f"\n  Candidates retrieved: {result.candidate_count}"
-            )
+            state.evaluator_feedback = _format_feedback(evaluation, sp, result.candidate_count)
             state.iteration += 1
 
-            if evaluation.satisfactory:
-                yield TraceEvent("Generating response...")
-                yield from self._conversationist.synthesize("catalog_with_recommendation", state.history, state.last_results, stream=True)  # type: ignore[misc]
-                return
-
         # Iteration cap reached — respond with whatever we have
-        strategy = "catalog_with_recommendation" if state.last_results else "no_results"
+        strategy = "no_results" if not state.last_results else "catalog_with_recommendation"
         yield TraceEvent("Generating response...")
         yield from self._conversationist.synthesize(strategy, state.history, state.last_results, stream=True)  # type: ignore[misc]

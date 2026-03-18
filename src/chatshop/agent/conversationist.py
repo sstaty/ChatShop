@@ -65,6 +65,13 @@ _STRATEGY_INSTRUCTIONS: dict[str, str] = {
         "someone should choose it — and when they absolutely shouldn't. "
         "Be the knowledgeable friend who gives you the real talk."
     ),
+    "narrow_results": (
+        "Only 1–2 products match the user's exact criteria. Present them clearly — "
+        "name each product, mention its price naturally in prose, and explain briefly why it fits. "
+        "Then acknowledge the results are limited and offer to broaden: suggest one specific "
+        "constraint the user could relax (e.g. budget, form factor, feature) to get more options. "
+        "Stay warm and helpful, not apologetic."
+    ),
     "no_results": (
         "Nothing in the catalog survived the user's constraints — even after "
         "multiple search attempts. Commiserate briefly (you feel their pain), "

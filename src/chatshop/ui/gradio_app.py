@@ -28,7 +28,6 @@ def _get_agent_loop() -> AgentLoop:
             evaluator=Evaluator(evaluator_llm),
             hybrid_search=HybridSearch(Retriever()),
             llm_client=synthesis_llm,
-            max_iterations=3,
         )
     return _agent_loop
 

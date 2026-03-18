@@ -1,16 +1,17 @@
 """
 Evaluator module — retrieval quality gate.
 
-The Evaluator is a lightweight LLM call that scores whether the current
-evidence set is sufficient to confidently answer the user's request. It does
-not control agent flow; it only produces a binary verdict and a reason string
-that the Planner uses on the next iteration.
+The Evaluator diagnoses whether the current evidence set is sufficient to
+answer the user's request. It produces a deterministic ``diagnosis`` (derived
+from candidate_count) plus LLM-identified ``blocking_constraints`` so the
+Planner can handle the situation conversationally.
 """
 
 from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
@@ -22,19 +23,36 @@ from chatshop.infra.llm_client import LLMClient
 class EvaluatorOutput:
     """Result of a single evidence-sufficiency evaluation."""
 
-    satisfactory: bool
-    """True when the retrieved products are sufficient to answer the request."""
+    diagnosis: Literal["no_results", "narrow_results", "sufficient"]
+    """Deterministic quality label derived from candidate_count.
+
+    ``no_results``     — 0 candidates passed the filters; query is over-constrained.
+    ``narrow_results`` — 1–2 candidates; limited but presentable.
+    ``sufficient``     — 3+ candidates; enough to generate a confident response.
+    """
+
+    blocking_constraints: list[str]
+    """Constraint names identified by the LLM as limiting the result set.
+
+    E.g. ``["price", "type"]``. Empty when diagnosis is ``sufficient`` or
+    when the LLM call is skipped (0 candidates).
+    """
 
     reason: str
-    """Concrete explanation of why the evidence is or is not sufficient.
+    """Concrete explanation of the retrieval outcome."""
 
-    When ``satisfactory`` is False this string is injected into the next
-    Planner iteration so it can refine the search strategy.
-    """
+    @property
+    def label(self) -> str:
+        """Human-readable diagnosis label for UI trace display."""
+        return {
+            "sufficient": "Sufficient",
+            "narrow_results": "Narrow results",
+            "no_results": "No results — will ask user to clarify",
+        }[self.diagnosis]
 
     def verdict(self) -> str:
         """Return a human-readable verdict string."""
-        status = "satisfactory" if self.satisfactory else "not satisfactory"
+        status = "satisfactory" if self.diagnosis == "sufficient" else "not satisfactory"
         return f"Results are {status}. {self.reason}"
 
 
@@ -46,7 +64,7 @@ class EvaluatorOutput:
 class _EvaluatorSchema(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    satisfactory: bool
+    blocking_constraints: list[str]
     reason: str
 
 
@@ -55,7 +73,7 @@ class _EvaluatorSchema(BaseModel):
 # ---------------------------------------------------------------------------
 
 _SYSTEM_PROMPT = """\
-You are a retrieval quality judge for a headphone shopping assistant.
+You are a retrieval quality analyst for a headphone shopping assistant.
 
 You are given:
 - The user's intent (one sentence)
@@ -63,17 +81,19 @@ You are given:
 - The number of products that passed the metadata filter (candidate_count)
 - The retrieved products
 
-Decide whether the evidence is sufficient to answer the user confidently.
+Your job is to identify which constraints are limiting the result set.
 
-satisfactory: true  — enough relevant products exist that match the intent and constraints.
-satisfactory: false — when any of these apply:
-  - candidate_count < 3 (over-filtering; results may be incomplete)
-  - products clearly don't match the stated intent
-  - key constraints (price ceiling, product type) are violated in most results
+blocking_constraints: list the specific constraint names that are too restrictive
+  (e.g. ["price", "type"], ["max_price"], ["wireless"]).
+  Use short, human-readable names matching the active constraints shown.
+  Leave empty if results are plentiful (3 or more candidates) or if the
+  results clearly satisfy the user's intent.
 
-reason: one concrete sentence. When false, be specific about what is missing
-or wrong so the Planner can act on it (e.g. "All results exceed the $120 budget"
-or "No wireless options found — try relaxing the type filter").\
+reason: one concrete sentence describing what is limiting results or confirming they are fine.
+  Examples:
+    "The $30 price ceiling and over-ear requirement together reduce the pool to 2 products."
+    "Only 1 wireless over-ear option exists under $50 in the catalog."
+    "Good selection of wireless earbuds under $100 — results look solid."\
 """
 
 
@@ -83,10 +103,10 @@ or "No wireless options found — try relaxing the type filter").\
 
 
 class Evaluator:
-    """Judges whether retrieved evidence is good enough to answer the user.
+    """Diagnoses retrieval quality and identifies blocking constraints.
 
-    Runs at low temperature with a binary-decision prompt to minimise
-    hallucination and enforce consistent structured output.
+    ``diagnosis`` is computed deterministically from ``candidate_count``;
+    ``blocking_constraints`` and ``reason`` come from a low-temperature LLM call.
     """
 
     def __init__(self, llm_client: LLMClient) -> None:
@@ -104,28 +124,31 @@ class Evaluator:
         products: list[Product],
         candidate_count: int,
     ) -> EvaluatorOutput:
-        """Score the sufficiency of a retrieval result set.
+        """Diagnose the quality of a retrieval result set.
 
         Args:
             intent_summary: A normalised one-sentence description of what
-                the user is trying to find. Produced by the QueryRewriter.
-            constraints: The active filters (price, rating, etc.) that were
-                applied during retrieval, so the evaluator can check
-                constraint satisfaction.
+                the user is trying to find.
+            constraints: The active filters applied during retrieval.
             products: Top-N products returned by HybridSearch.
             candidate_count: Total number of products that passed the metadata
-                filter before vector ranking. Very small values (< 3) should
-                bias the evaluator toward ``satisfactory=False``.
+                filter before vector ranking.
 
         Returns:
-            :class:`EvaluatorOutput` with a binary verdict and a concrete
-            reason string.
+            :class:`EvaluatorOutput` with a deterministic diagnosis,
+            LLM-identified blocking constraints, and a reason string.
         """
-        if not products:
+        # Deterministic diagnosis — no LLM needed for 0 candidates.
+        if candidate_count == 0:
             return EvaluatorOutput(
-                satisfactory=False,
-                reason="No products were retrieved. The filters may be too restrictive.",
+                diagnosis="no_results",
+                blocking_constraints=[],
+                reason="No products passed the filters.",
             )
+
+        diagnosis: Literal["narrow_results", "sufficient"] = (
+            "narrow_results" if candidate_count <= 2 else "sufficient"
+        )
 
         product_block = "\n\n---\n\n".join(p.to_context_text() for p in products)
 
@@ -141,4 +164,8 @@ class Evaluator:
 
         raw = self._llm.complete(messages, response_format=_EvaluatorSchema)
         data = json.loads(raw)
-        return EvaluatorOutput(satisfactory=data["satisfactory"], reason=data["reason"])
+        return EvaluatorOutput(
+            diagnosis=diagnosis,
+            blocking_constraints=data["blocking_constraints"],
+            reason=data["reason"],
+        )

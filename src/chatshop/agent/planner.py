@@ -109,6 +109,7 @@ class RespondAction:
     response_strategy: Literal[
         "catalog_with_recommendation",
         "tradeoff_explanation",
+        "narrow_results",
         "no_results",
         "informational",
         "off_topic",
@@ -119,6 +120,8 @@ class RespondAction:
         Present 3–5 retrieved products; call out one top pick with reasoning.
     ``tradeoff_explanation``
         Compare 2–3 options head-to-head; explain when to choose each.
+    ``narrow_results``
+        Only 1–2 products match; present them clearly and offer to broaden.
     ``no_results``
         No products survived filtering even after retries; tell the user why
         and suggest how to broaden the search.
@@ -148,6 +151,7 @@ class _PlannerSchema(BaseModel):
     response_strategy: Literal[
         "catalog_with_recommendation",
         "tradeoff_explanation",
+        "narrow_results",
         "no_results",
         "informational",
         "off_topic",
@@ -160,11 +164,11 @@ class _PlannerSchema(BaseModel):
 
 _SYSTEM_PROMPT = """\
 You are the planning agent for a personal audio shopping assistant specialising in
-headphones, earbuds, in-ear monitors (IEMs), and true wireless (TWS) earphones.
+headphones and earbuds.
 Your only job is to decide the next action. You do NOT build search queries or rank products.
 
 The catalog covers all personal audio worn on or in the ears:
-  over-ear headphones, on-ear headphones, in-ear monitors, earbuds, true wireless (TWS).
+  over-ear headphones, on-ear headphones, in-ear earbuds.
 
 Decide one of three actions:
 
@@ -187,17 +191,22 @@ clarify
     - The query is off-topic or a greeting → use respond/off_topic instead
 
 search
-  The intent is clear AND either: (a) no products have been retrieved yet, OR
-  (b) the evaluator explicitly says results are NOT satisfactory.
-  Do NOT choose search if the evaluator has already said results are satisfactory.
+  ONLY when evaluator_feedback is absent — meaning no search has been run yet this turn.
+  If evaluator_feedback is present, you have already searched. Do NOT search again.
 
 respond
-  Sufficient evidence exists to answer the user. Choose a response_strategy:
-    catalog_with_recommendation  — present 3–5 products, highlight one top pick
+  Sufficient evidence exists to answer the user without a retrieval search. Choose a response_strategy:
     tradeoff_explanation         — compare 2–3 options head-to-head
-    no_results                   — nothing matched even after retries; explain why
+    no_results                   — nothing matched; explain why and suggest how to broaden
     informational                — educational/conversational query about personal audio, no products needed
     off_topic                    — user asked about something unrelated to personal audio, or sent a greeting
+
+When evaluator_feedback is present:
+  → The search returned 0 results. The query is over-constrained. Choose clarify.
+  → Write one focused question naming the filters that were applied and asking
+    which constraint the user would prefer to relax.
+  → Example: "No over-ear headphones under $50 — closest options start around $70.
+    Stretch the budget, or would on-ear or earbuds work?"
 
 Rules:
 - Always write reasoning_trace before deciding action.
@@ -255,6 +264,23 @@ class Planner:
         if isinstance(history, str):
             history = [{"role": "user", "content": history}]
 
+        # Post-search deterministic routing — never delegate to LLM for these
+        if previous_results is not None:
+            count = len(previous_results)
+            if count >= 3:
+                return RespondAction(
+                    action="respond",
+                    response_strategy="catalog_with_recommendation",
+                    reasoning_trace="Sufficient results retrieved.",
+                )
+            if count >= 1:
+                return RespondAction(
+                    action="respond",
+                    response_strategy="narrow_results",
+                    reasoning_trace="Only 1–2 results retrieved.",
+                )
+        # previous_results is None (0-results or no search yet) — fall through to LLM
+
         messages: list[dict] = [{"role": "system", "content": _SYSTEM_PROMPT}]
 
         if previous_results:
@@ -264,6 +290,12 @@ class Planner:
             messages.append({
                 "role": "system",
                 "content": f"## Retrieved products (most recent search)\n\n{context_block}",
+            })
+
+        if evaluator_feedback:
+            messages.append({
+                "role": "system",
+                "content": f"## Evaluator feedback (most recent search)\n\n{evaluator_feedback}",
             })
 
         messages.extend(history)
