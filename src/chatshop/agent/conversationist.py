@@ -48,9 +48,16 @@ Hard rules:
 _STRATEGY_INSTRUCTIONS: dict[str, str] = {
     "catalog_with_recommendation": (
         "You have retrieved products that match the user's request. "
-        "Lead with your single top pick — tell them WHY it's the one, with a "
-        "bit of flair. Then list 2–4 alternatives with key specs and prices. "
-        "Be direct, opinionated, and entertaining."
+        "Write one punchy paragraph about your single top pick: name it, mention its price naturally "
+        "in the prose (e.g. 'at $89' or 'for $89'), and explain concisely why it wins for this user. "
+        "Then write a second short paragraph of conversational one-liners for 2–5 alternatives, "
+        "framed as 'want [meaningful dimension]?' questions — e.g. "
+        "'Want something cheaper? The Jabra Endurance Peak 3 at $79 gets the job done. "
+        "After the longest battery? The 1More True Wireless X runs 10 hours. "
+        "Need serious ANC? The Sony WF-1000XM5 at $279 is in a different league.' "
+        "Choose dimensions that reflect how the products actually differ (price, battery, ANC, fit, "
+        "durability, sound signature, etc.). Skip alternatives that are too similar to your top pick "
+        "to offer real contrast. No bullet lists, no spec tables — just natural, flowing sentences."
     ),
     "tradeoff_explanation": (
         "The user needs help choosing between options. Compare 2–3 of the "
@@ -73,10 +80,11 @@ _STRATEGY_INSTRUCTIONS: dict[str, str] = {
     ),
     "off_topic": (
         "The user has asked about something completely outside your domain "
-        "(greetings, non-headphone products, random topics). Remind them — "
-        "with your signature wit — that headphones are your one true calling. "
-        "You are not a general-purpose assistant; you are a headphone specialist "
-        "and proud of it. Redirect them warmly toward asking about headphones."
+        "(greetings, non-audio products, random topics). Remind them — "
+        "with your signature wit — that your expertise covers headphones, earbuds, "
+        "in-ear monitors, true wireless, and all things you put on or in your ears. "
+        "You are not a general-purpose assistant; you are an ear audio specialist "
+        "and proud of it. Redirect them warmly toward asking about headphones or earbuds."
     ),
 }
 
@@ -86,11 +94,19 @@ _STRATEGY_INSTRUCTIONS: dict[str, str] = {
 # ---------------------------------------------------------------------------
 
 
-class Conversationist:
-    """Synthesises the final user-facing response with personality.
+_CLARIFY_INSTRUCTION = (
+    "You need to ask the user a clarifying question before you can search. "
+    "Below is the raw question the planner wants to ask. Rephrase it in your own voice — "
+    "warm, brief, conversational, on-brand. Don't repeat it verbatim; make it feel "
+    "natural given the conversation so far. Keep it to 1–2 sentences max."
+)
 
-    This is the only component that generates text the user actually sees
-    (except for clarifying questions, which come directly from the Planner).
+
+class Conversationist:
+    """Synthesises all user-facing text with personality.
+
+    Handles both final responses (via ``synthesize``) and clarifying questions
+    (via ``clarify``), ensuring everything the user sees sounds like ChatShop.
     """
 
     def __init__(self, llm_client: LLMClient) -> None:
@@ -138,3 +154,27 @@ class Conversationist:
         if stream:
             return self._llm.stream(messages)
         return self._llm.complete(messages, temperature=0.7)
+
+    def clarify(
+        self,
+        raw_question: str,
+        history: list[dict],
+        *,
+        stream: bool = False,
+    ) -> Union[str, Iterator[str]]:
+        """Rephrase a planner-generated clarifying question in ChatShop's voice.
+
+        Args:
+            raw_question: The raw question string from the Planner.
+            history: Full conversation history so far (for context and variance).
+            stream: If True, return a token iterator; otherwise return a string.
+        """
+        system_content = _SYSTEM_PROMPT + "\n\n" + _CLARIFY_INSTRUCTION
+
+        messages: list[dict] = [{"role": "system", "content": system_content}]
+        messages.extend(history)
+        messages.append({"role": "user", "content": f"Raw question to rephrase: {raw_question}"})
+
+        if stream:
+            return self._llm.stream(messages)
+        return self._llm.complete(messages, temperature=0.8)

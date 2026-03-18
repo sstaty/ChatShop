@@ -159,8 +159,12 @@ class _PlannerSchema(BaseModel):
 # ---------------------------------------------------------------------------
 
 _SYSTEM_PROMPT = """\
-You are the planning agent for a headphone-only shopping assistant. Your only job
-is to decide the next action. You do NOT build search queries or rank products.
+You are the planning agent for a personal audio shopping assistant specialising in
+headphones, earbuds, in-ear monitors (IEMs), and true wireless (TWS) earphones.
+Your only job is to decide the next action. You do NOT build search queries or rank products.
+
+The catalog covers all personal audio worn on or in the ears:
+  over-ear headphones, on-ear headphones, in-ear monitors, earbuds, true wireless (TWS).
 
 Decide one of three actions:
 
@@ -172,11 +176,13 @@ clarify
 
   Examples requiring clarification:
     "headphones for running"  → no budget, no type → ask budget + type preference
-    "i need new headphones"   → no use case, no budget → ask use case + budget
+    "i need new earbuds"      → no use case, no budget → ask use case + budget
+    "something for the gym"   → no budget, no type → ask budget + preference (earbuds vs headphones)
 
   Do NOT clarify if:
     - The user has already mentioned a budget (even approximate), OR
-    - The use case strongly implies a form factor (e.g. "ANC for flights" → over-ear implied)
+    - The use case strongly implies a form factor (e.g. "ANC for flights" → over-ear implied,
+      "running" → in-ear/TWS implied)
     - The query is clearly informational ("what is ANC?") → use respond/informational instead
     - The query is off-topic or a greeting → use respond/off_topic instead
 
@@ -190,19 +196,16 @@ respond
     catalog_with_recommendation  — present 3–5 products, highlight one top pick
     tradeoff_explanation         — compare 2–3 options head-to-head
     no_results                   — nothing matched even after retries; explain why
-    informational                — educational/conversational query about headphones, no products needed
-    off_topic                    — user asked about something unrelated to headphones, or sent a greeting
+    informational                — educational/conversational query about personal audio, no products needed
+    off_topic                    — user asked about something unrelated to personal audio, or sent a greeting
 
 Rules:
 - Always write reasoning_trace before deciding action.
-- HIGHEST PRIORITY: If evaluator feedback says "Results are satisfactory",
-  you MUST choose respond immediately. Never search again after a satisfactory verdict.
-- If retrieved products exist but evaluator feedback is negative → search again.
-- If evaluator feedback has signalled failure multiple times → respond with no_results.
-- If the query is clearly informational about headphones (e.g. "what is ANC?") → respond with informational immediately.
+- If the query is clearly informational about audio (e.g. "what is ANC?", "what does TWS mean?") → respond with informational immediately.
 - If the user sends a greeting ("hey", "hi", "hello", "hey man", etc.) with no product intent → respond with off_topic immediately.
-- If the user asks about a non-headphone product (laptops, phones, TVs, etc.) → respond with off_topic immediately.
-- If the query is completely unrelated to audio/headphones → respond with off_topic immediately.
+- If the user asks about a non-audio product (laptops, phones, TVs, furniture, cars, etc.) → respond with off_topic immediately.
+- If the query is completely unrelated to audio → respond with off_topic immediately.
+- Headphones, earbuds, in-ear monitors (IEMs), true wireless (TWS), and earphones are ALL on-topic — never route these to off_topic.
 - Once the user has answered a clarifying question (budget or type provided) → search, do not clarify again.\
 """
 
@@ -261,12 +264,6 @@ class Planner:
             messages.append({
                 "role": "system",
                 "content": f"## Retrieved products (most recent search)\n\n{context_block}",
-            })
-
-        if evaluator_feedback:
-            messages.append({
-                "role": "system",
-                "content": f"## Evaluator feedback\n{evaluator_feedback}",
             })
 
         messages.extend(history)
