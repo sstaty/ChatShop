@@ -34,8 +34,6 @@ class _HeadphoneFilters(BaseModel):
     wireless: bool | None = None
     anc: bool | None = None
     type: Literal["over-ear", "in-ear", "open-back"] | None = None
-    use_cases: Literal["travel", "office", "studio", "sport", "gaming"] | None = None
-    min_battery_hours: int | None = None
 
 
 class _FilterHints(BaseModel):
@@ -74,23 +72,33 @@ Translate the user's shopping message into a structured output with:
     "commute"           -> noise-cancelling headphones portable long battery life
   Max 60 words.
 
-- filter_hints: Inferred constraints -- only populate when clearly evidenced:
-    max_price / min_price (float) -- from budget mentions
+- filter_hints: Hard constraints derived ONLY from explicit user statements:
+    max_price / min_price (float) -- ONLY if the user states a price or budget
     min_rating (float)            -- "well-rated" -> 4.0, "top-rated" -> 4.5
     headphone_filters:
-      wireless (bool)          -- "wireless"/"bluetooth" -> true; "wired" -> false
-      anc (bool)               -- "noise cancelling"/"ANC"/"quiet" -> true
-      type (str)               -- "over-ear" | "in-ear" | "open-back"
-      use_cases (str)          -- "travel" | "office" | "studio" | "sport" | "gaming"
-      min_battery_hours (int)  -- "all day" -> 20; explicit hours -> that number
+      wireless (bool)  -- "wireless"/"bluetooth" -> true; "wired" -> false
+      anc (bool)       -- "noise cancelling"/"ANC"/"quiet" -> true
+      type (str)       -- "over-ear" | "in-ear" | "open-back" — ONLY if user states this
+
+  CONSERVATIVE INFERENCE RULE — DO NOT infer filters from use-case alone:
+    - "running" / "gym" / "sport" → do NOT set type, price range, or any filter
+      unless the user explicitly states it
+    - No price mentioned → leave max_price and min_price as null
+    - No form factor mentioned → leave type as null
+    - Never set anc=false or wireless=false unless the user explicitly asks for wired
+      or explicitly says they don't want noise cancelling
 
 - intent_summary: One sentence describing what the user wants.
 
 Use history to resolve references ("the second one", "under that budget").
-Only set filters when confident.
 
-If a "## Search feedback" block is provided, the previous search was unsatisfactory.
-Adjust the semantic_query and/or relax filters to address the stated issue.\
+If a "## Search feedback" block is provided, the previous search returned no results
+or was unsatisfactory. You MUST:
+  1. If feedback mentions no products found (0 results): set headphone_filters to
+     all null, remove min_price and any speculatively-added max_price, and broaden
+     the semantic_query to a wider concept
+  2. Only keep max_price if the user explicitly stated a budget
+  3. Rewrite semantic_query to be less specific (e.g. drop technical specs)\
 """
 
 

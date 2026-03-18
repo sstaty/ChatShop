@@ -282,7 +282,7 @@ This avoids artificial multi‑agent complexity while remaining extensible.
 
 ## Actual Module Architecture
 
-Skeleton implemented. Deviations from the original suggestion are noted.
+All Phase 2 modules fully implemented. Deviations from the original suggestion are noted.
 
 ```
 src/chatshop/
@@ -290,14 +290,14 @@ src/chatshop/
     agent/
         planner.py          ← PlannerOutput union, SearchFilters, SearchPlan, Planner
         evaluator.py        ← EvaluatorOutput, Evaluator
-        agent_loop.py       ← LoopState, AgentLoop
+        agent_loop.py       ← LoopState, AgentLoop (fully implemented)
 
     rag/
         retriever.py        ← Phase 1, unchanged
         hybrid_search.py    ← SearchResult, HybridSearch (new)
         query_rewriter.py   ← RewrittenQuery, QueryRewriter (new — moved here from domain/)
         chain.py            ← DEPRECATED: Phase 1 RAGChain; deleted when UI wired to AgentLoop
-        prompt.py           ← SYSTEM_PROMPT, build_user_message; kept for response synthesis
+        prompt.py           ← SYSTEM_PROMPT, build_user_message; reused for response synthesis
 
     vectorstore/
         chroma.py           ← Phase 1, unchanged (was "retrieval/vector_store.py" in suggestion)
@@ -319,6 +319,12 @@ Deviations from original suggestion:
 - `infra/config.py` not created — `config.py` already exists at package root
 - `ui/reasoning_panel.py` deferred — reasoning panel logic stays in `gradio_app.py` for now
 - `retrieval/vector_store.py` not created — already exists as `vectorstore/chroma.py`
+
+Deviations introduced during AgentLoop implementation:
+
+- `SearchAction` extended with `intent_summary: str` field — the Planner's internal `QueryRewriter` call already produces this; surfacing it on the output avoids a redundant second LLM call in `AgentLoop._run_iteration` when the Evaluator needs it
+- `AgentLoop.__init__` takes `llm_client: LLMClient` instead of `query_rewriter: QueryRewriter` — response synthesis requires a direct LLM call; `query_rewriter` is not needed by the loop itself (the Planner calls it internally)
+- Response synthesis lives in `AgentLoop._synthesize()` — no separate `ResponseSynthesizer` class created; the logic is simple enough (strategy instruction + product catalog + history → LLM call) that a private method suffices; reuses `SYSTEM_PROMPT` and `build_user_message` from `rag/prompt.py`
 
 ---
 

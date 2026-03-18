@@ -28,10 +28,11 @@ Reference loop (from architecture doc):
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Iterator
+from typing import TYPE_CHECKING, Iterator, Union
 
+from chatshop.agent.conversationist import Conversationist
+from chatshop.agent.planner import SearchFilters
 from chatshop.data.models import Product
-from chatshop.rag.prompt import SYSTEM_PROMPT, build_user_message
 
 if TYPE_CHECKING:
     from chatshop.agent.evaluator import Evaluator
@@ -41,28 +42,33 @@ if TYPE_CHECKING:
 
 
 # ---------------------------------------------------------------------------
-# Response synthesis — strategy-specific instructions appended to SYSTEM_PROMPT
+# Reasoning trace
 # ---------------------------------------------------------------------------
 
-_STRATEGY_INSTRUCTIONS: dict[str, str] = {
-    "catalog_with_recommendation": (
-        "Present 3–5 products from the catalog. Lead with your single top recommendation "
-        "and explain concisely why it fits best. Then list alternatives with key specs and prices."
-    ),
-    "tradeoff_explanation": (
-        "Compare 2–3 of the retrieved options head-to-head. "
-        "For each, explain clearly when a user should choose it over the others."
-    ),
-    "no_results": (
-        "No products matched the user's requirements even after multiple search attempts. "
-        "Explain specifically why (mention the constraints that caused the issue) "
-        "and suggest how the user might broaden or adjust their search."
-    ),
-    "informational": (
-        "Answer the user's question directly and conversationally. "
-        "Do not present a product catalog unless it naturally adds value."
-    ),
-}
+
+@dataclass
+class TraceEvent:
+    """A human-readable reasoning trace line emitted during the agent loop.
+
+    Yielded by :meth:`AgentLoop.stream_with_trace` interleaved with response
+    tokens so the UI can update a reasoning panel in real time.
+    """
+
+    text: str
+
+
+def _format_filters(filters: SearchFilters) -> str:
+    """Return a compact human-readable summary of active search filters."""
+    parts: list[str] = []
+    if filters.max_price is not None:
+        parts.append(f"price ≤ ${filters.max_price:.0f}")
+    if filters.min_price is not None:
+        parts.append(f"price ≥ ${filters.min_price:.0f}")
+    if filters.min_rating is not None:
+        parts.append(f"rating ≥ {filters.min_rating}")
+    for k, v in filters.extra_filters.items():
+        parts.append(f"{k}={v}")
+    return " · ".join(parts) if parts else "none"
 
 
 # ---------------------------------------------------------------------------
@@ -126,6 +132,7 @@ class AgentLoop:
         self._evaluator = evaluator
         self._search = hybrid_search
         self._llm = llm_client
+        self._conversationist = Conversationist(llm_client)
         self._max_iterations = max_iterations
 
     # ------------------------------------------------------------------
@@ -175,6 +182,81 @@ class AgentLoop:
         strategy = self._resolve_strategy(plan, state.last_results)
         yield from self._synthesize(state, strategy, stream=True)  # type: ignore[misc]
 
+    def stream_with_trace(
+        self, message: str, history: list[dict]
+    ) -> Iterator[Union[TraceEvent, str]]:
+        """Run the agent loop yielding :class:`TraceEvent` during planning/
+        retrieval and plain ``str`` tokens during final response synthesis.
+
+        This is the entry point for UIs that want to show a live reasoning
+        panel alongside the streamed chat response.  Planning and retrieval
+        run incrementally — each step emits a :class:`TraceEvent` before the
+        next LLM call starts, so the UI updates while the loop is still
+        running.
+
+        Args:
+            message: The current user message.
+            history: Prior conversation turns in OpenAI message format.
+
+        Yields:
+            :class:`TraceEvent` instances for each reasoning step, then plain
+            ``str`` chunks for the final LLM response.
+        """
+        yield TraceEvent("Analyzing request...")
+
+        full_history = history + [{"role": "user", "content": message}]
+        state = LoopState(history=full_history)
+
+        while not state.finished and state.iteration < self._max_iterations:
+            plan = self._planner.plan(
+                history=state.history,
+                previous_results=state.last_results or None,
+                evaluator_feedback=state.evaluator_feedback,
+            )
+            state.last_plan = plan
+
+            if plan.action == "clarify":
+                yield TraceEvent("Clarifying...")
+                yield plan.question
+                return
+
+            if plan.action == "respond":
+                strategy = self._resolve_strategy(plan, state.last_results)
+                yield TraceEvent("Generating response...")
+                yield from self._synthesize(state, strategy, stream=True)  # type: ignore[misc]
+                return
+
+            # action == "search"
+            sp = plan.search_plan
+            yield TraceEvent(
+                f"Intent: {plan.intent_summary}\n"
+                f'Semantic: "{sp.semantic_query}"\n'
+                f"Filters: {_format_filters(sp.filters)}"
+            )
+
+            result = self._search.search(sp)
+            evaluation = self._evaluator.evaluate(
+                intent_summary=plan.intent_summary,
+                constraints=result.applied_filters,
+                products=result.products,
+                candidate_count=result.candidate_count,
+            )
+
+            suffix = "" if evaluation.satisfactory else " — retrying"
+            yield TraceEvent(
+                f"Retrieved {result.candidate_count} candidates\n"
+                f"Evaluator: {evaluation.reason}{suffix}"
+            )
+
+            state.last_results = result.products
+            state.evaluator_feedback = evaluation.verdict()
+            state.iteration += 1
+
+        # Iteration cap reached without a RespondAction
+        strategy = self._resolve_strategy(state.last_plan, state.last_results)
+        yield TraceEvent("Generating response...")
+        yield from self._synthesize(state, strategy, stream=True)  # type: ignore[misc]
+
     # ------------------------------------------------------------------
     # Private helpers
     # ------------------------------------------------------------------
@@ -221,7 +303,14 @@ class AgentLoop:
         )
 
         state.last_results = result.products
-        state.evaluator_feedback = evaluation.verdict()
+        sp = plan.search_plan
+        search_summary = (
+            f"\n\nPrevious search that produced this result:\n"
+            f'  Semantic query: "{sp.semantic_query}"\n'
+            f"  Filters: {_format_filters(sp.filters)}\n"
+            f"  Candidates retrieved: {result.candidate_count}"
+        )
+        state.evaluator_feedback = evaluation.verdict() + search_summary
         state.iteration += 1
         return state
 
@@ -245,29 +334,19 @@ class AgentLoop:
         *,
         stream: bool = False,
     ) -> str | Iterator[str]:
-        """Build synthesis messages and call the LLM.
+        """Delegate response synthesis to the Conversationist.
 
         Args:
             state: Final loop state containing history and retrieved products.
-            strategy: One of the four response strategy keys.
+            strategy: One of the response strategy keys.
             stream: If True, return a token iterator; otherwise return a string.
 
         Returns:
             Full response string, or a token iterator when ``stream=True``.
         """
-        system_content = SYSTEM_PROMPT + "\n\n" + _STRATEGY_INSTRUCTIONS[strategy]
-        messages: list[dict] = [{"role": "system", "content": system_content}]
-
-        # Inject prior turns (all except the current user message)
-        messages.extend(state.history[:-1])
-
-        # Final user turn — embed the product catalog
-        last_user_content = state.history[-1]["content"]
-        messages.append({
-            "role": "user",
-            "content": build_user_message(last_user_content, state.last_results),
-        })
-
-        if stream:
-            return self._llm.stream(messages)
-        return self._llm.complete(messages, temperature=0.7)
+        return self._conversationist.synthesize(
+            strategy=strategy,
+            history=state.history,
+            products=state.last_results,
+            stream=stream,
+        )

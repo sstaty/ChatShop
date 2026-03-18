@@ -4,13 +4,18 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
-    # LLM — direct provider key (OpenAI, Anthropic, etc.)
-    litellm_model: str = "gpt-4o-mini"
+    # LLM API keys
+    # litellm_api_key: used for direct provider calls (OpenAI, Anthropic, etc.)
+    # openrouter_api_key: used when any model string starts with "openrouter/"
     litellm_api_key: str = ""
-
-    # LLM — OpenRouter (routes to any frontier model with one key)
-    # Set litellm_model to e.g. "openrouter/openai/gpt-4o-mini" to activate.
     openrouter_api_key: str = ""
+
+    # LLM models — one per component. Any LiteLLM model string works.
+    # "openrouter/..." models use openrouter_api_key; others use litellm_api_key.
+    planner_model: str = "gpt-4o-mini"          # decision logic — use smartest model
+    query_rewriter_model: str = "gpt-4o-mini"   # structured JSON extraction
+    evaluator_model: str = "gpt-4o-mini"         # binary result classification
+    synthesis_model: str = "gpt-4o-mini"         # final response generation
 
     # Embeddings
     # backend: "local" (sentence-transformers, no API key) or "openai" (text-embedding-3-small)

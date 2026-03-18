@@ -121,19 +121,22 @@ class LLMClient:
                 yield content
 
 
-def llm_client_from_settings() -> LLMClient:
-    """Build an :class:`LLMClient` from the global settings object.
+def _api_key_for_model(model: str) -> str:
+    """Return the appropriate API key for the given model string."""
+    if model.startswith("openrouter/"):
+        return settings.openrouter_api_key
+    return settings.litellm_api_key
 
-    Picks the correct API key based on the configured model:
-    OpenRouter models (prefixed ``"openrouter/"``) use ``openrouter_api_key``;
-    everything else uses ``litellm_api_key``.
 
-    This is the only function that imports ``settings`` — module code that
-    needs an LLMClient should call this rather than constructing one manually.
+def llm_client_for(model: str) -> LLMClient:
+    """Build an :class:`LLMClient` for the given LiteLLM model string.
+
+    Picks the correct API key automatically:
+    ``"openrouter/..."`` models use ``openrouter_api_key``;
+    all others use ``litellm_api_key``.
+
+    Args:
+        model: Any LiteLLM model string, e.g. ``"gpt-4o-mini"``,
+            ``"openrouter/openai/gpt-4o"``, or ``"ollama/llama3.2"``.
     """
-    if settings.litellm_model.startswith("openrouter/"):
-        api_key = settings.openrouter_api_key
-    else:
-        api_key = settings.litellm_api_key
-
-    return LLMClient(model=settings.litellm_model, api_key=api_key)
+    return LLMClient(model=model, api_key=_api_key_for_model(model))
