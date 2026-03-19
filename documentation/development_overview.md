@@ -26,16 +26,19 @@ Advanced replies with agentic AI.
     - "Compare the best ANC headphone under $150 vs the best one under $300 — is the upgrade worth it?"
 - Here you can find the [Agentic AI architecture](phase_2_agentic_architecture.md)
 
-## Phase xx - to cagetorize later
+## Phase 3
+LLM Observability with Langfuse.
+- Two-layer tracing: automatic LiteLLM callback for every LLM call + explicit trace hierarchy with spans per module
+- Structured traces per conversation turn: Trace(agent_turn) → Span(planner/search/evaluator/conversationist) → Generation
+- Business metadata on spans: evaluator diagnosis, search filters, response strategy, candidate counts
+- Cost, latency, and token tracking per module and per turn
+- Graceful degradation: fully optional, zero impact when Langfuse env vars are absent
+- Here you can find the [Observability Architecture](phase_3_observability.md)
 
-Add observability: In standard software, logging is "The user clicked X." In AI, Observability is "The model thought X, retrieved Y, but said Z."
-    Context Relevance: Did my search actually find the right headphones?
-    Groundedness: Is the answer based only on the search results, or did the model make it up?
-    Answer Relevance: Does the answer actually help the user buy something?
-    Arize Phoenix (opensource) langfuse, langsmith
+## Phase xx - to categorize later
 
-High volume data: get broad data sets (10k + products), clean up, synthetise what's missing (Synthetic Data Augmentation) cleanup, etc. 
+High volume data: get broad data sets (10k + products), clean up, synthetise what's missing (Synthetic Data Augmentation) cleanup, etc.
 Tests and evals: Golden dataset. Eval retrieval. Eval hard questions. Eval costs. What else to eval?
 Cost optimization: frontier LLM for thinking & reasoning, fine-tuned open-source for simpler tasks, e.g. JSON outputs (use Outlines or Guidance to guarantee proper JSON structure). Deploy on modal.
-Proper web Frontend (react.js), backend (fastAPI), vercel + docker for deployment. Add product cards. Dashboards, thinking (?) 
+Proper web Frontend (react.js), backend (fastAPI), vercel + docker for deployment. Add product cards. Dashboards, thinking (?)
 

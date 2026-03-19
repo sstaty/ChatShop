@@ -261,6 +261,7 @@ class Planner:
         history: list[dict],
         previous_results: list[Product] | None = None,
         evaluator_feedback: str | None = None,
+        metadata: dict | None = None,
     ) -> PlannerOutput:
         """Produce the next action for the agent loop.
 
@@ -310,7 +311,7 @@ class Planner:
 
         raw = ""
         try:
-            raw = self._llm.complete(messages, response_format=_PlannerSchema)
+            raw = self._llm.complete(messages, response_format=_PlannerSchema, metadata=metadata)
             data = json.loads(raw)
 
             action = data["action"]
@@ -324,7 +325,7 @@ class Planner:
                 )
 
             if action == "search":
-                rewritten = self._rewriter.rewrite(history, evaluator_feedback=evaluator_feedback)
+                rewritten = self._rewriter.rewrite(history, evaluator_feedback=evaluator_feedback, metadata=metadata)
                 fh = rewritten.filter_hints
                 filters = SearchFilters(
                     max_price=fh.get("max_price"),

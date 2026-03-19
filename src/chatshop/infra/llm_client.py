@@ -45,6 +45,7 @@ class LLMClient:
         messages: str | list[dict],
         response_format: type | None = None,
         temperature: float = 0.2,
+        metadata: dict | None = None,
     ) -> str:
         """Return the full assistant reply as a string.
 
@@ -78,6 +79,8 @@ class LLMClient:
             kwargs["api_base"] = self._api_base
         if response_format is not None:
             kwargs["response_format"] = response_format
+        if metadata is not None:
+            kwargs["metadata"] = metadata
 
         import litellm
         response = litellm.completion(**kwargs)
@@ -87,6 +90,7 @@ class LLMClient:
         self,
         messages: str | list[dict],
         temperature: float = 0.7,
+        metadata: dict | None = None,
     ) -> Iterator[str]:
         """Yield assistant reply tokens one at a time.
 
@@ -110,6 +114,8 @@ class LLMClient:
             temperature=temperature,
             stream=True,
         )
+        if metadata is not None:
+            kwargs["metadata"] = metadata
         if self._api_base:
             kwargs["api_base"] = self._api_base
 

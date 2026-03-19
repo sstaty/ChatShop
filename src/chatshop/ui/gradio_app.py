@@ -14,9 +14,12 @@ def _get_agent_loop() -> AgentLoop:
         from chatshop.agent.planner import Planner
         from chatshop.config import settings
         from chatshop.infra.llm_client import llm_client_for
+        from chatshop.infra.observability import init_observability
         from chatshop.rag.hybrid_search import HybridSearch
         from chatshop.rag.query_rewriter import QueryRewriter
         from chatshop.rag.retriever import Retriever
+
+        init_observability()
 
         planner_llm   = llm_client_for(settings.planner_model)
         rewriter_llm  = llm_client_for(settings.query_rewriter_model)

@@ -126,6 +126,7 @@ class Conversationist:
         products: list[Product],
         *,
         stream: bool = False,
+        metadata: dict | None = None,
     ) -> Union[str, Iterator[str]]:
         """Generate the final response for the given strategy.
 
@@ -159,8 +160,8 @@ class Conversationist:
         })
 
         if stream:
-            return self._llm.stream(messages)
-        return self._llm.complete(messages, temperature=0.7)
+            return self._llm.stream(messages, metadata=metadata)
+        return self._llm.complete(messages, temperature=0.7, metadata=metadata)
 
     def clarify(
         self,
@@ -168,6 +169,7 @@ class Conversationist:
         history: list[dict],
         *,
         stream: bool = False,
+        metadata: dict | None = None,
     ) -> Union[str, Iterator[str]]:
         """Rephrase a planner-generated clarifying question in ChatShop's voice.
 
@@ -183,5 +185,5 @@ class Conversationist:
         messages.append({"role": "user", "content": f"Raw question to rephrase: {raw_question}"})
 
         if stream:
-            return self._llm.stream(messages)
-        return self._llm.complete(messages, temperature=0.8)
+            return self._llm.stream(messages, metadata=metadata)
+        return self._llm.complete(messages, temperature=0.8, metadata=metadata)

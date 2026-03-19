@@ -33,6 +33,13 @@ from typing import TYPE_CHECKING, Iterator, Union
 from chatshop.agent.conversationist import Conversationist
 from chatshop.agent.planner import SearchFilters, strategy_for_result_count
 from chatshop.data.models import Product
+from chatshop.infra.observability import (
+    create_span,
+    create_trace,
+    end_span,
+    flush_observability,
+    llm_metadata,
+)
 
 if TYPE_CHECKING:
     from chatshop.agent.evaluator import Evaluator, EvaluatorOutput
@@ -163,24 +170,49 @@ class AgentLoop:
         """
         yield TraceEvent("Analyzing request...")
 
+        trace = create_trace("agent_turn", metadata={"user_message": message})
         state = LoopState(history=history + [{"role": "user", "content": message}])
 
         while state.iteration < self._max_iterations:
+            # --- Planner ---
+            planner_span = create_span(trace, "planner", input={"iteration": state.iteration})
+            meta = llm_metadata(trace, "planner")
+
             plan = self._planner.plan(
                 history=state.history,
                 previous_results=state.last_results or None,
                 evaluator_feedback=state.evaluator_feedback,
+                metadata=meta,
             )
             state.last_plan = plan
 
+            end_span(planner_span, output={
+                "action": plan.action,
+                "reasoning_trace": plan.reasoning_trace,
+            })
+
             if plan.action == "clarify":
                 yield TraceEvent("Clarifying...")
-                yield from self._conversationist.clarify(plan.question, state.history, stream=True)  # type: ignore[misc]
+                conv_span = create_span(trace, "conversationist", input={"mode": "clarify"})
+                conv_meta = llm_metadata(trace, "conversationist-clarify")
+                for token in self._conversationist.clarify(plan.question, state.history, stream=True, metadata=conv_meta):  # type: ignore[misc]
+                    yield token
+                end_span(conv_span, output={"mode": "clarify"})
+                flush_observability()
                 return
 
             if plan.action == "respond":
                 yield TraceEvent("Generating response...")
-                yield from self._conversationist.synthesize(plan.response_strategy, state.history, state.last_results, stream=True)  # type: ignore[misc]
+                conv_span = create_span(trace, "conversationist", input={
+                    "mode": "synthesize",
+                    "strategy": plan.response_strategy,
+                    "product_count": len(state.last_results),
+                })
+                conv_meta = llm_metadata(trace, "conversationist-synthesize")
+                for token in self._conversationist.synthesize(plan.response_strategy, state.history, state.last_results, stream=True, metadata=conv_meta):  # type: ignore[misc]
+                    yield token
+                end_span(conv_span, output={"strategy": plan.response_strategy})
+                flush_observability()
                 return
 
             # action == "search"
@@ -192,13 +224,39 @@ class AgentLoop:
                 f"Filters: {_format_filters(sp.filters)}"
             )
 
+            # --- Hybrid Search ---
+            search_span = create_span(trace, "hybrid_search", input={
+                "semantic_query": sp.semantic_query,
+                "filters": _format_filters(sp.filters),
+            })
+
             result = self._search.search(sp)
+
+            end_span(search_span, output={
+                "candidate_count": result.candidate_count,
+                "result_count": len(result.products),
+            })
+
+            # --- Evaluator ---
+            eval_span = create_span(trace, "evaluator", input={
+                "intent_summary": plan.intent_summary,
+                "candidate_count": result.candidate_count,
+            })
+            eval_meta = llm_metadata(trace, "evaluator")
+
             evaluation = self._evaluator.evaluate(
                 intent_summary=plan.intent_summary,
                 constraints=result.applied_filters,
                 products=result.products,
                 candidate_count=result.candidate_count,
+                metadata=eval_meta,
             )
+
+            end_span(eval_span, output={
+                "diagnosis": evaluation.diagnosis,
+                "blocking_constraints": evaluation.blocking_constraints,
+                "reason": evaluation.reason,
+            })
 
             yield TraceEvent(
                 f"Retrieved {result.candidate_count} candidates\n"
@@ -212,4 +270,13 @@ class AgentLoop:
         # Iteration cap reached — respond with whatever we have
         strategy = strategy_for_result_count(len(state.last_results))
         yield TraceEvent("Generating response...")
-        yield from self._conversationist.synthesize(strategy, state.history, state.last_results, stream=True)  # type: ignore[misc]
+        conv_span = create_span(trace, "conversationist", input={
+            "mode": "synthesize",
+            "strategy": strategy,
+            "product_count": len(state.last_results),
+        })
+        conv_meta = llm_metadata(trace, "conversationist-synthesize")
+        for token in self._conversationist.synthesize(strategy, state.history, state.last_results, stream=True, metadata=conv_meta):  # type: ignore[misc]
+            yield token
+        end_span(conv_span, output={"strategy": strategy})
+        flush_observability()

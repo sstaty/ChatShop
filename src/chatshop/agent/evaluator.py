@@ -126,6 +126,7 @@ class Evaluator:
         constraints: dict,
         products: list[Product],
         candidate_count: int,
+        metadata: dict | None = None,
     ) -> EvaluatorOutput:
         """Diagnose the quality of a retrieval result set.
 
@@ -167,7 +168,7 @@ class Evaluator:
 
         raw = ""
         try:
-            raw = self._llm.complete(messages, response_format=_EvaluatorSchema)
+            raw = self._llm.complete(messages, response_format=_EvaluatorSchema, metadata=metadata)
             data = json.loads(raw)
             return EvaluatorOutput(
                 diagnosis=diagnosis,

@@ -154,6 +154,7 @@ class QueryRewriter:
         self,
         history: str | list[dict],
         evaluator_feedback: str | None = None,
+        metadata: dict | None = None,
     ) -> RewrittenQuery:
         """Translate a conversation into a retrieval-optimised query.
 
@@ -185,7 +186,7 @@ class QueryRewriter:
 
         raw = ""
         try:
-            raw = self._llm.complete(messages, response_format=_RewriteSchema)
+            raw = self._llm.complete(messages, response_format=_RewriteSchema, metadata=metadata)
             data = json.loads(raw)
 
             fh = data.get("filter_hints", {})

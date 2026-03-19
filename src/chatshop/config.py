@@ -37,5 +37,10 @@ class Settings(BaseSettings):
     # RAG
     top_k_results: int = 5
 
+    # Langfuse observability (optional — leave blank to disable)
+    langfuse_public_key: str = ""
+    langfuse_secret_key: str = ""
+    langfuse_host: str = "https://cloud.langfuse.com"
+
 
 settings = Settings()
