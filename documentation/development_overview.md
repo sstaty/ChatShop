@@ -27,12 +27,14 @@ Advanced replies with agentic AI.
 - Here you can find the [Agentic AI architecture](phase_2_agentic_architecture.md)
 
 ## Phase 3
-LLM Observability with Langfuse.
-- Two-layer tracing: automatic LiteLLM callback for every LLM call + explicit trace hierarchy with spans per module
+LLM Observability with Langfuse. Also: replaced LiteLLM with direct OpenAI SDK.
 - Structured traces per conversation turn: Trace(agent_turn) → Span(planner/search/evaluator/conversationist) → Generation
+- Direct Langfuse generation logging from LLMClient (no callback intermediary)
 - Business metadata on spans: evaluator diagnosis, search filters, response strategy, candidate counts
 - Cost, latency, and token tracking per module and per turn
 - Graceful degradation: fully optional, zero impact when Langfuse env vars are absent
+- Removed LiteLLM dependency — all LLM calls now use OpenAI SDK directly (supports OpenAI + OpenRouter via base_url)
+- Deleted deprecated Phase 1 RAGChain (`rag/chain.py`)
 - Here you can find the [Observability Architecture](phase_3_observability.md)
 
 ## Phase xx - to categorize later

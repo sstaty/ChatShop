@@ -5,7 +5,7 @@ description = "Conversational shopping assistant with RAG pipeline"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "litellm>=1.40",
+    "openai>=1.0",
     "chromadb>=0.5",
     "gradio>=4.0",
     "sentence-transformers>=3.0",

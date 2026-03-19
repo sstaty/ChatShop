@@ -1,22 +1,23 @@
 """
-Langfuse observability — thin wrapper for tracing and LLM call logging.
+Langfuse observability — thin wrapper for tracing and LLM generation logging.
 
 Isolates all Langfuse SDK imports so the rest of the codebase never touches
 langfuse directly.  Every function degrades gracefully to a no-op when
 Langfuse env vars are absent or the package is not installed.
 
-Two integration layers:
-
-Layer 1 (automatic):
-    ``init_observability()`` registers Langfuse as a LiteLLM success/failure
-    callback.  Every ``litellm.completion()`` call is then auto-logged with
-    token counts, latency, cost, model, and raw inputs/outputs.
-
-Layer 2 (explicit trace hierarchy):
+Trace hierarchy:
     ``create_trace`` / ``create_span`` / ``end_span`` let the AgentLoop build
-    a structured trace tree: Trace(agent_turn) → Span(planner) → Generation.
-    ``llm_metadata`` produces the dict that LiteLLM needs to nest its
-    auto-logged generations under the correct span.
+    a structured trace tree.  ``log_generation`` records individual LLM calls
+    under a trace with token counts, latency, model, and full I/O.
+
+    Trace(agent_turn)
+    ├── Span(planner)
+    │   └── Generation(planner)
+    ├── Span(hybrid_search)
+    ├── Span(evaluator)
+    │   └── Generation(evaluator)
+    └── Span(conversationist)
+        └── Generation(conversationist-synthesize)
 """
 
 from __future__ import annotations
@@ -37,7 +38,7 @@ def langfuse_enabled() -> bool:
 
 
 def init_observability() -> None:
-    """Register Langfuse as a LiteLLM callback if credentials are present.
+    """Initialise the Langfuse client if credentials are present.
 
     Safe to call multiple times — subsequent calls are no-ops.
     """
@@ -47,22 +48,17 @@ def init_observability() -> None:
         return
 
     try:
-        import litellm
         from langfuse import Langfuse
 
         from chatshop.config import settings
-
-        litellm.success_callback = ["langfuse"]
-        litellm.failure_callback = ["langfuse"]
 
         _langfuse_client = Langfuse(
             public_key=settings.langfuse_public_key,
             secret_key=settings.langfuse_secret_key,
             host=settings.langfuse_host,
         )
-        print(f"[observability] Langfuse client initialised: {_langfuse_client is not None}")
-    except Exception as exc:
-        print(f"[observability] Langfuse init FAILED: {exc}")
+        logger.info("Langfuse observability initialised")
+    except Exception:
         logger.warning("Langfuse init failed", exc_info=True)
 
 
@@ -74,7 +70,6 @@ def create_trace(
 ) -> Any:
     """Create a Langfuse trace and return the trace object (or None)."""
     if _langfuse_client is None:
-        print("[observability] create_trace skipped — client is None")
         return None
     try:
         kwargs: dict[str, Any] = {"name": name}
@@ -84,11 +79,9 @@ def create_trace(
             kwargs["user_id"] = user_id
         if metadata:
             kwargs["metadata"] = metadata
-        trace = _langfuse_client.trace(**kwargs)
-        print(f"[observability] Trace created: id={trace.id}, trace_id={trace.trace_id}")
-        return trace
-    except Exception as exc:
-        print(f"[observability] create_trace FAILED: {exc}")
+        return _langfuse_client.trace(**kwargs)
+    except Exception:
+        logger.debug("Failed to create Langfuse trace", exc_info=True)
         return None
 
 
@@ -123,30 +116,61 @@ def end_span(span: Any, output: dict | None = None) -> None:
         logger.debug("Failed to end Langfuse span", exc_info=True)
 
 
+def log_generation(
+    trace: Any,
+    name: str,
+    model: str,
+    input: Any,
+    output: str,
+    usage: dict | None = None,
+) -> None:
+    """Log an LLM generation directly under a Langfuse trace.
+
+    Called by ``LLMClient`` after each completion/stream finishes.
+
+    Args:
+        trace: Langfuse trace object from ``create_trace``.
+        name: Label for this generation (e.g. ``"planner"``, ``"evaluator"``).
+        model: Model string used for the call.
+        input: Messages sent to the LLM.
+        output: Full response content.
+        usage: Token counts dict with ``prompt_tokens``, ``completion_tokens``,
+            ``total_tokens`` keys.
+    """
+    if trace is None:
+        return
+    try:
+        kwargs: dict[str, Any] = {
+            "name": name,
+            "model": model,
+            "input": input,
+            "output": output,
+        }
+        if usage:
+            kwargs["usage"] = usage
+        trace.generation(**kwargs)
+    except Exception:
+        logger.debug("Failed to log Langfuse generation", exc_info=True)
+
+
 def llm_metadata(
     trace: Any,
     generation_name: str | None = None,
 ) -> dict | None:
-    """Build the metadata dict that LiteLLM uses to attach a generation to our trace.
+    """Build the metadata dict that LLMClient uses for Langfuse logging.
 
     Args:
         trace: The Langfuse trace object from ``create_trace``.
-        generation_name: Label for this generation in the Langfuse dashboard
-            (e.g. ``"planner"``, ``"evaluator"``).
+        generation_name: Label for this generation in the Langfuse dashboard.
 
     Returns None when tracing is disabled so callers can skip it cleanly.
     """
     if trace is None:
         return None
-    try:
-        meta: dict[str, str] = {"existing_trace_id": trace.id}
-        if generation_name:
-            meta["generation_name"] = generation_name
-        print(f"[observability] llm_metadata: {meta}")
-        return meta
-    except Exception as exc:
-        print(f"[observability] llm_metadata FAILED: {exc}")
-        return None
+    return {
+        "trace": trace,
+        "generation_name": generation_name or "completion",
+    }
 
 
 def flush_observability() -> None:

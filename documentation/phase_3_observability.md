@@ -19,36 +19,29 @@ Langfuse answers all of these by capturing structured traces with token counts, 
 
 ---
 
-## Two-Layer Architecture
+## Architecture: Direct Langfuse Integration
 
-### Layer 1 — LiteLLM Callback (Automatic)
-
-LiteLLM natively supports Langfuse as a success/failure callback. When enabled, every `litellm.completion()` call is auto-logged as a **generation** in Langfuse with:
-
-- Model name, provider
-- Full input messages and output content
-- Token counts (prompt, completion, total)
-- Latency (time to first token, total)
-- Estimated cost (based on model pricing)
-
-This requires zero changes to LLM-calling code — just registering the callback at startup.
-
-### Layer 2 — Explicit Trace Hierarchy (Manual)
-
-Layer 1 alone produces a flat list of generations. Layer 2 adds structure: a **trace** per conversation turn, with **spans** for each module call. Langfuse generations from Layer 1 are nested under the correct spans via metadata passthrough.
+LLM calls go through `LLMClient` (OpenAI SDK wrapper) which logs generations directly to Langfuse after each completion. No intermediary callback layers — full control over what gets logged and how it nests.
 
 ```
 Trace: agent_turn
 ├── Span: planner
-│   └── Generation: litellm (auto-logged)
-├── Span: hybrid_search
+│   └── Generation: planner (logged by LLMClient)
+├── Span: hybrid_search (no LLM call — just metadata)
 ├── Span: evaluator
-│   └── Generation: litellm (auto-logged)
+│   └── Generation: evaluator (logged by LLMClient)
 └── Span: conversationist
-    └── Generation: litellm (auto-logged, streamed)
+    └── Generation: conversationist-synthesize (logged by LLMClient)
 ```
 
-Each span carries business-level metadata (intent, filters, diagnosis, strategy) — not just raw LLM I/O.
+**How it works:**
+
+1. `AgentLoop.stream_with_trace()` creates a Langfuse **trace** per conversation turn
+2. Each module call is wrapped in a **span** with business metadata (intent, filters, diagnosis)
+3. `LLMClient.complete()` / `stream()` call `log_generation()` after each LLM call, recording model, token counts, full I/O under the trace
+4. The metadata dict `{"trace": trace_obj, "generation_name": "planner"}` flows through each module to `LLMClient`
+
+Each span carries business-level metadata — not just raw LLM I/O.
 
 ---
 
@@ -59,12 +52,12 @@ Each span carries business-level metadata (intent, filters, diagnosis, strategy)
 | Module | Span Name | Input Metadata | Output Metadata |
 |--------|-----------|---------------|----------------|
 | Planner | `planner` | iteration number | action, reasoning_trace |
-| QueryRewriter | *(nested inside planner LLM call)* | — | — |
+| QueryRewriter | *(LLM call logged as generation under trace)* | — | — |
 | HybridSearch | `hybrid_search` | semantic_query, filters | candidate_count, result_count |
 | Evaluator | `evaluator` | intent_summary, candidate_count | diagnosis, blocking_constraints, reason |
 | Conversationist | `conversationist` | mode (synthesize/clarify), strategy, product_count | strategy |
 
-The QueryRewriter's LLM call happens inside `Planner.plan()` and is captured as a separate generation under the planner span by LiteLLM's callback.
+The QueryRewriter's LLM call happens inside `Planner.plan()` and is captured as a separate generation under the trace.
 
 ---
 
@@ -77,11 +70,12 @@ All Langfuse logic lives in `src/chatshop/infra/observability.py` — a thin wra
 | Function | Purpose |
 |----------|---------|
 | `langfuse_enabled()` | Check if both API keys are configured |
-| `init_observability()` | Register LiteLLM Langfuse callback (once at startup, no-op if disabled) |
+| `init_observability()` | Initialise Langfuse client (once at startup, no-op if disabled) |
 | `create_trace(name, session_id, ...)` | Create a Langfuse trace, return trace object or None |
 | `create_span(trace, name, input)` | Create a span under a trace, return span object or None |
 | `end_span(span, output)` | End a span with optional output metadata |
-| `llm_metadata(trace, span)` | Build the `{"trace_id": ..., "parent_observation_id": ...}` dict for LiteLLM |
+| `log_generation(trace, name, model, input, output, usage)` | Log an LLM generation under a trace with token counts |
+| `llm_metadata(trace, generation_name)` | Build metadata dict for LLMClient (`{"trace": ..., "generation_name": ...}`) |
 | `flush_observability()` | Flush pending Langfuse events |
 
 ### Graceful Degradation
@@ -90,8 +84,8 @@ Every function is safe to call when Langfuse is not configured:
 
 - `langfuse_enabled()` returns False when env vars are empty
 - `create_trace` / `create_span` return None
-- `end_span` / `flush_observability` are silent no-ops when passed None
-- `llm_metadata` returns None, causing `LLMClient` to skip the metadata kwarg
+- `end_span` / `log_generation` / `flush_observability` are silent no-ops when passed None
+- `llm_metadata` returns None, causing `LLMClient` to skip Langfuse logging entirely
 - All functions wrap Langfuse SDK calls in try/except — a broken Langfuse connection never crashes the app
 
 ---
@@ -101,12 +95,11 @@ Every function is safe to call when Langfuse is not configured:
 The metadata dict flows through a clean 3-level chain:
 
 ```
-AgentLoop                          creates trace + span
-    → llm_metadata(trace, span)    builds {"trace_id": ..., "parent_observation_id": ...}
-    → Module.method(metadata=...)   passes dict through unchanged
-        → LLMClient.complete(metadata=...)  merges into litellm kwargs
-            → litellm.completion(**kwargs)  Langfuse callback reads metadata
-                → Generation nested under correct span in Langfuse
+AgentLoop                              creates trace + span
+    → llm_metadata(trace, "planner")   builds {"trace": trace_obj, "generation_name": "planner"}
+    → Module.method(metadata=...)       passes dict through unchanged
+        → LLMClient.complete(metadata=...)  calls OpenAI SDK, then log_generation()
+            → Generation recorded in Langfuse under the trace
 ```
 
 All `metadata` parameters default to `None`. When Langfuse is disabled, `llm_metadata` returns None, and the entire chain becomes a no-op with zero overhead.
@@ -159,8 +152,8 @@ For each conversation turn:
 
 | File | Role |
 |------|------|
-| `src/chatshop/infra/observability.py` | All Langfuse wrapper logic |
-| `src/chatshop/infra/llm_client.py` | Accepts `metadata` param, passes to litellm |
+| `src/chatshop/infra/observability.py` | All Langfuse wrapper logic + `log_generation()` |
+| `src/chatshop/infra/llm_client.py` | OpenAI SDK wrapper, logs generations via `log_generation()` |
 | `src/chatshop/agent/agent_loop.py` | Creates traces/spans, orchestrates metadata flow |
 | `src/chatshop/agent/planner.py` | Threads metadata to LLM call |
 | `src/chatshop/rag/query_rewriter.py` | Threads metadata to LLM call |
@@ -173,10 +166,20 @@ For each conversation turn:
 
 ## Deviations from Plan
 
-### Langfuse version pinned to `<3.0`
+### LiteLLM removed, replaced with direct OpenAI SDK
 
-LiteLLM 1.82 passes `sdk_integration` as a keyword argument when initialising the Langfuse client (see `litellm/integrations/langfuse/langfuse.py`, line 147). Langfuse 3.x and 4.x removed this parameter from `Langfuse.__init__()`, causing a `TypeError` at runtime.
+The original plan used LiteLLM's Langfuse callback for "Layer 1" (automatic generation logging). This caused persistent version incompatibilities:
 
-**Fix:** Pin `langfuse>=2.0,<3.0` in `pyproject.toml`. Langfuse 2.57.x is the latest 2.x release and is fully compatible with LiteLLM 1.82.
+- LiteLLM 1.82 passed `sdk_integration` kwarg to Langfuse, but Langfuse 3.x/4.x dropped that parameter
+- LiteLLM's `existing_trace_id` metadata mechanism was needed instead of `trace_id` for trace nesting
+- LiteLLM didn't support `parent_observation_id` for span nesting at all
 
-**When to revisit:** When upgrading LiteLLM to a version that drops the `sdk_integration` kwarg or adapts to the new Langfuse 3.x/4.x API, bump the langfuse upper bound accordingly.
+**Resolution:** Removed LiteLLM entirely. Replaced with:
+- **OpenAI SDK** for LLM calls (supports OpenAI + OpenRouter via `base_url`)
+- **Direct Langfuse `log_generation()`** calls from `LLMClient` after each completion
+
+This gives better control, simpler debugging, and eliminates the dependency compatibility issues. The `langfuse>=2.0,<3.0` pin remains as a precaution but can likely be relaxed now that LiteLLM is no longer in the picture.
+
+### Deprecated `rag/chain.py` deleted
+
+Phase 1's `RAGChain` was the last file importing litellm directly. It was already marked as deprecated and superseded by `AgentLoop`. Deleted along with its test file `tests/test_chain.py`.
