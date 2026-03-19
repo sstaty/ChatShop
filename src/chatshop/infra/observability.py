@@ -8,7 +8,8 @@ Langfuse env vars are absent or the package is not installed.
 Trace hierarchy:
     ``create_trace`` / ``create_span`` / ``end_span`` let the AgentLoop build
     a structured trace tree.  ``log_generation`` records individual LLM calls
-    under a trace with token counts, latency, model, and full I/O.
+    nested under their parent span (not the top-level trace) with token counts,
+    latency, model, and full I/O.
 
     Trace(agent_turn)
     ├── Span(planner)
@@ -117,19 +118,19 @@ def end_span(span: Any, output: dict | None = None) -> None:
 
 
 def log_generation(
-    trace: Any,
+    parent: Any,
     name: str,
     model: str,
     input: Any,
     output: str,
     usage: dict | None = None,
 ) -> None:
-    """Log an LLM generation directly under a Langfuse trace.
+    """Log an LLM generation under a Langfuse span or trace.
 
     Called by ``LLMClient`` after each completion/stream finishes.
 
     Args:
-        trace: Langfuse trace object from ``create_trace``.
+        parent: Langfuse span or trace object to nest the generation under.
         name: Label for this generation (e.g. ``"planner"``, ``"evaluator"``).
         model: Model string used for the call.
         input: Messages sent to the LLM.
@@ -137,7 +138,7 @@ def log_generation(
         usage: Token counts dict with ``prompt_tokens``, ``completion_tokens``,
             ``total_tokens`` keys.
     """
-    if trace is None:
+    if parent is None:
         return
     try:
         kwargs: dict[str, Any] = {
@@ -148,27 +149,27 @@ def log_generation(
         }
         if usage:
             kwargs["usage"] = usage
-        trace.generation(**kwargs)
+        parent.generation(**kwargs)
     except Exception:
         logger.debug("Failed to log Langfuse generation", exc_info=True)
 
 
 def llm_metadata(
-    trace: Any,
+    parent: Any,
     generation_name: str | None = None,
 ) -> dict | None:
     """Build the metadata dict that LLMClient uses for Langfuse logging.
 
     Args:
-        trace: The Langfuse trace object from ``create_trace``.
+        parent: The Langfuse span or trace to nest the generation under.
         generation_name: Label for this generation in the Langfuse dashboard.
 
     Returns None when tracing is disabled so callers can skip it cleanly.
     """
-    if trace is None:
+    if parent is None:
         return None
     return {
-        "trace": trace,
+        "trace": parent,
         "generation_name": generation_name or "completion",
     }
 

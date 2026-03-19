@@ -176,7 +176,7 @@ class AgentLoop:
         while state.iteration < self._max_iterations:
             # --- Planner ---
             planner_span = create_span(trace, "planner", input={"iteration": state.iteration})
-            meta = llm_metadata(trace, "planner")
+            meta = llm_metadata(planner_span, "planner")
 
             plan = self._planner.plan(
                 history=state.history,
@@ -194,7 +194,7 @@ class AgentLoop:
             if plan.action == "clarify":
                 yield TraceEvent("Clarifying...")
                 conv_span = create_span(trace, "conversationist", input={"mode": "clarify"})
-                conv_meta = llm_metadata(trace, "conversationist-clarify")
+                conv_meta = llm_metadata(conv_span, "conversationist-clarify")
                 for token in self._conversationist.clarify(plan.question, state.history, stream=True, metadata=conv_meta):  # type: ignore[misc]
                     yield token
                 end_span(conv_span, output={"mode": "clarify"})
@@ -208,7 +208,7 @@ class AgentLoop:
                     "strategy": plan.response_strategy,
                     "product_count": len(state.last_results),
                 })
-                conv_meta = llm_metadata(trace, "conversationist-synthesize")
+                conv_meta = llm_metadata(conv_span, "conversationist-synthesize")
                 for token in self._conversationist.synthesize(plan.response_strategy, state.history, state.last_results, stream=True, metadata=conv_meta):  # type: ignore[misc]
                     yield token
                 end_span(conv_span, output={"strategy": plan.response_strategy})
@@ -242,7 +242,7 @@ class AgentLoop:
                 "intent_summary": plan.intent_summary,
                 "candidate_count": result.candidate_count,
             })
-            eval_meta = llm_metadata(trace, "evaluator")
+            eval_meta = llm_metadata(eval_span, "evaluator")
 
             evaluation = self._evaluator.evaluate(
                 intent_summary=plan.intent_summary,
@@ -275,7 +275,7 @@ class AgentLoop:
             "strategy": strategy,
             "product_count": len(state.last_results),
         })
-        conv_meta = llm_metadata(trace, "conversationist-synthesize")
+        conv_meta = llm_metadata(conv_span, "conversationist-synthesize")
         for token in self._conversationist.synthesize(strategy, state.history, state.last_results, stream=True, metadata=conv_meta):  # type: ignore[misc]
             yield token
         end_span(conv_span, output={"strategy": strategy})

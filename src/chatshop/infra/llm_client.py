@@ -80,7 +80,7 @@ class LLMClient:
         # Log generation to Langfuse if trace context provided
         if metadata and metadata.get("trace"):
             log_generation(
-                trace=metadata["trace"],
+                parent=metadata["trace"],
                 name=metadata.get("generation_name", "completion"),
                 model=self._model,
                 input=messages,
@@ -133,7 +133,7 @@ class LLMClient:
         # Log full generation to Langfuse after streaming completes
         if metadata and metadata.get("trace"):
             log_generation(
-                trace=metadata["trace"],
+                parent=metadata["trace"],
                 name=metadata.get("generation_name", "stream"),
                 model=self._model,
                 input=messages,
