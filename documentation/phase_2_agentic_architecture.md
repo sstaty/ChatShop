@@ -106,7 +106,6 @@ The Planner is the central reasoning component responsible for:
       "filters": {
           "max_price": float | null,
           "min_price": float | null,
-          "min_rating": float | null,
           "extra_filters": {...}   ← domain-specific key-value pairs (e.g. wireless, anc)
       },
       "sort_by": "rating" | "price_asc" | "price_desc" | null
@@ -119,7 +118,7 @@ The Planner is the central reasoning component responsible for:
 Note on `sort_by`: applied as a post-vector re-sort within the already cosine-ranked result
 set. Use only for explicit user ordering requests ("cheapest ones", "highest rated").
 
-Note on `extra_filters`: domain-agnostic design — universal price/rating fields are typed;
+Note on `extra_filters`: domain-agnostic design — universal price fields are typed;
 domain-specific attributes (e.g. `{"wireless": true, "anc": true}` for headphones,
 `{"screen_size_inches": 15.6}` for laptops) go into `extra_filters` so the schema stays
 valid across product categories.

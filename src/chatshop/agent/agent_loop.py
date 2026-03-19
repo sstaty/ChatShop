@@ -71,8 +71,6 @@ def _format_filters(filters: SearchFilters) -> str:
         parts.append(f"price ≤ ${filters.max_price:.0f}")
     if filters.min_price is not None:
         parts.append(f"price ≥ ${filters.min_price:.0f}")
-    if filters.min_rating is not None:
-        parts.append(f"rating ≥ {filters.min_rating}")
     for k, v in filters.extra_filters.items():
         parts.append(f"{k}={v}")
     return " · ".join(parts) if parts else "none"
@@ -163,6 +161,8 @@ class AgentLoop:
 
         This is the canonical loop implementation and the entry point for UIs
         that want to show a live reasoning panel alongside the streamed response.
+
+        Uses observability.py (langfuse) to track LLM calls, context, usage
 
         Yields:
             :class:`TraceEvent` instances for each reasoning step, then plain

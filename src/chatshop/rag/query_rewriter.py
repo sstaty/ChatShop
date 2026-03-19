@@ -44,7 +44,6 @@ class _FilterHints(BaseModel):
 
     max_price: float | None = None
     min_price: float | None = None
-    min_rating: float | None = None
     headphone_filters: _HeadphoneFilters = PydanticField(
         default_factory=_HeadphoneFilters
     )
@@ -77,7 +76,6 @@ Translate the user's shopping message into a structured output with:
 
 - filter_hints: Hard constraints derived ONLY from explicit user statements:
     max_price / min_price (float) -- ONLY if the user states a price or budget
-    min_rating (float)            -- "well-rated" -> 4.0, "top-rated" -> 4.5
     headphone_filters:
       wireless (bool)  -- "wireless"/"bluetooth" -> true; "wired" -> false
       anc (bool)       -- "noise cancelling"/"ANC"/"quiet" -> true

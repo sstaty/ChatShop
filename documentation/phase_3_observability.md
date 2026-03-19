@@ -106,6 +106,12 @@ All `metadata` parameters default to `None`. When Langfuse is disabled, `llm_met
 
 ---
 
+## LangFuse Trace for agent_loop
+
+Implemented LangFuse trace (single agent-turn):
+
+![LangFuse trace](images/langfuse-trace-01.png)
+
 ## Configuration
 
 ### Required Environment Variables

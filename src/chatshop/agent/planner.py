@@ -36,14 +36,13 @@ class SearchFilters:
     All fields are optional — only populated when the planner has enough
     evidence to apply that constraint without over-filtering.
 
-    Universal fields (price, rating) are typed. Domain-specific attributes
+    Universal fields (price) are typed. Domain-specific attributes
     (e.g. wireless, ANC for headphones; screen size for laptops) go into
     ``extra_filters`` so the schema stays valid across product categories.
     """
 
     max_price: float | None = None
     min_price: float | None = None
-    min_rating: float | None = None
     extra_filters: dict[str, Any] = field(default_factory=dict)
     """Free-form domain-specific metadata constraints.
 
@@ -65,7 +64,7 @@ class SearchPlan:
     filters: SearchFilters = field(default_factory=SearchFilters)
     """Hard metadata constraints applied before vector search."""
 
-    sort_by: Literal["rating", "price_asc", "price_desc"] | None = None
+    sort_by: Literal["price_asc", "price_desc"] | None = None
     """Optional post-vector re-sort applied within the already-ranked result set.
 
     Cosine similarity ranking runs first; ``sort_by`` then re-orders within
@@ -330,7 +329,6 @@ class Planner:
                 filters = SearchFilters(
                     max_price=fh.get("max_price"),
                     min_price=fh.get("min_price"),
-                    min_rating=fh.get("min_rating"),
                     extra_filters=fh.get("extra_filters", {}),
                 )
                 return SearchAction(
