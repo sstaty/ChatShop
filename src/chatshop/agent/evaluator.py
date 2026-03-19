@@ -10,6 +10,7 @@ Planner can handle the situation conversationally.
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import dataclass
 from typing import Literal
 
@@ -17,6 +18,8 @@ from pydantic import BaseModel, ConfigDict
 
 from chatshop.data.models import Product
 from chatshop.infra.llm_client import LLMClient
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -162,10 +165,19 @@ class Evaluator:
             )},
         ]
 
-        raw = self._llm.complete(messages, response_format=_EvaluatorSchema)
-        data = json.loads(raw)
-        return EvaluatorOutput(
-            diagnosis=diagnosis,
-            blocking_constraints=data["blocking_constraints"],
-            reason=data["reason"],
-        )
+        raw = ""
+        try:
+            raw = self._llm.complete(messages, response_format=_EvaluatorSchema)
+            data = json.loads(raw)
+            return EvaluatorOutput(
+                diagnosis=diagnosis,
+                blocking_constraints=data["blocking_constraints"],
+                reason=data["reason"],
+            )
+        except (json.JSONDecodeError, KeyError) as exc:
+            logger.warning("Evaluator JSON parse failed: %s — raw: %.200s", exc, raw)
+            return EvaluatorOutput(
+                diagnosis=diagnosis,
+                blocking_constraints=[],
+                reason=f"Evaluator parse error: {exc}",
+            )

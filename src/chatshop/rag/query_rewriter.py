@@ -14,6 +14,7 @@ Examples of rewrites:
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import dataclass, field
 from typing import Literal
 
@@ -21,6 +22,8 @@ from pydantic import BaseModel, ConfigDict
 from pydantic import Field as PydanticField
 
 from chatshop.infra.llm_client import LLMClient
+
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -180,15 +183,25 @@ class QueryRewriter:
 
         messages.extend(history)
 
-        raw = self._llm.complete(messages, response_format=_RewriteSchema)
-        data = json.loads(raw)
+        raw = ""
+        try:
+            raw = self._llm.complete(messages, response_format=_RewriteSchema)
+            data = json.loads(raw)
 
-        fh = data.get("filter_hints", {})
-        hf = fh.pop("headphone_filters", {}) or {}
-        fh["extra_filters"] = {k: v for k, v in hf.items() if v is not None}
+            fh = data.get("filter_hints", {})
+            hf = fh.pop("headphone_filters", {}) or {}
+            fh["extra_filters"] = {k: v for k, v in hf.items() if v is not None}
 
-        return RewrittenQuery(
-            semantic_query=data.get("semantic_query", ""),
-            filter_hints=fh,
-            intent_summary=data.get("intent_summary", ""),
-        )
+            return RewrittenQuery(
+                semantic_query=data.get("semantic_query", ""),
+                filter_hints=fh,
+                intent_summary=data.get("intent_summary", ""),
+            )
+        except (json.JSONDecodeError, KeyError) as exc:
+            logger.warning("QueryRewriter JSON parse failed: %s — raw: %.200s", exc, raw)
+            user_query = history[-1]["content"] if history else ""
+            return RewrittenQuery(
+                semantic_query=user_query,
+                filter_hints={},
+                intent_summary=user_query,
+            )

@@ -111,6 +111,7 @@ The Planner is the central reasoning component responsible for:
       },
       "sort_by": "rating" | "price_asc" | "price_desc" | null
   },
+  "intent_summary": string,
   "reasoning_trace": string
 }
 ```
@@ -130,8 +131,10 @@ valid across product categories.
   "action": "respond",
   "response_strategy": "catalog_with_recommendation" |
                        "tradeoff_explanation" |
+                       "narrow_results" |
                        "no_results" |
-                       "informational",
+                       "informational" |
+                       "off_topic",
   "reasoning_trace": string
 }
 ```
@@ -140,8 +143,10 @@ Response strategy guide:
 
 - `catalog_with_recommendation` — present 3–5 products, call out one top pick with reasoning
 - `tradeoff_explanation` — compare 2–3 options head-to-head, explain when to choose each
+- `narrow_results` — only 1–2 products match; present them and offer to broaden the search
 - `no_results` — nothing survived filtering after retries; explain why and suggest broadening
 - `informational` — answer conversational/educational query (e.g. "what is ANC?"); Planner skips retrieval
+- `off_topic` — user asked about non-audio topic or sent a greeting; redirect warmly toward headphones
 
 Design principles:
 
@@ -186,10 +191,13 @@ Is the retrieved evidence set sufficient to confidently answer the user request?
 
 ```
 {
-  "satisfactory": boolean,
+  "diagnosis": "no_results" | "narrow_results" | "sufficient",
+  "blocking_constraints": [string],
   "reason": string
 }
 ```
+
+`diagnosis` is computed deterministically from `candidate_count` (0 → no_results, 1–2 → narrow_results, 3+ → sufficient). `blocking_constraints` and `reason` are LLM-identified — the LLM only explains what limits the results, not the diagnosis itself.
 
 Evaluator receives structured context:
 
@@ -200,7 +208,7 @@ Evaluator receives structured context:
 
 Reliability techniques:
 
-- binary decision enforcement
+- deterministic diagnosis from candidate_count (LLM never sets diagnosis)
 - required concrete failure reason
 - low temperature configuration
 - awareness of constraint satisfaction
@@ -324,7 +332,7 @@ Deviations introduced during AgentLoop implementation:
 
 - `SearchAction` extended with `intent_summary: str` field — the Planner's internal `QueryRewriter` call already produces this; surfacing it on the output avoids a redundant second LLM call in `AgentLoop._run_iteration` when the Evaluator needs it
 - `AgentLoop.__init__` takes `llm_client: LLMClient` instead of `query_rewriter: QueryRewriter` — response synthesis requires a direct LLM call; `query_rewriter` is not needed by the loop itself (the Planner calls it internally)
-- Response synthesis lives in `AgentLoop._synthesize()` — no separate `ResponseSynthesizer` class created; the logic is simple enough (strategy instruction + product catalog + history → LLM call) that a private method suffices; reuses `SYSTEM_PROMPT` and `build_user_message` from `rag/prompt.py`
+- A full `Conversationist` class was created in `agent/conversationist.py` — owns the user-facing personality prompt, strategy-specific instructions, and clarification rephrasing. `AgentLoop` delegates all user-facing text generation to `Conversationist.synthesize()` and `Conversationist.clarify()`
 
 ---
 

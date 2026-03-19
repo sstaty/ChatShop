@@ -31,7 +31,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Iterator, Union
 
 from chatshop.agent.conversationist import Conversationist
-from chatshop.agent.planner import SearchFilters
+from chatshop.agent.planner import SearchFilters, strategy_for_result_count
 from chatshop.data.models import Product
 
 if TYPE_CHECKING:
@@ -210,6 +210,6 @@ class AgentLoop:
             state.iteration += 1
 
         # Iteration cap reached — respond with whatever we have
-        strategy = "no_results" if not state.last_results else "catalog_with_recommendation"
+        strategy = strategy_for_result_count(len(state.last_results))
         yield TraceEvent("Generating response...")
         yield from self._conversationist.synthesize(strategy, state.history, state.last_results, stream=True)  # type: ignore[misc]

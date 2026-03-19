@@ -10,6 +10,7 @@ modules only produce evidence.
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import dataclass, field
 from typing import Any, Literal, Union
 
@@ -19,6 +20,8 @@ from pydantic import Field as PydanticField
 from chatshop.data.models import Product
 from chatshop.infra.llm_client import LLMClient
 from chatshop.rag.query_rewriter import QueryRewriter
+
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -135,6 +138,19 @@ class RespondAction:
 
 PlannerOutput = Union[ClarifyAction, SearchAction, RespondAction]
 """Discriminated union of all possible Planner decisions."""
+
+
+def strategy_for_result_count(count: int) -> str:
+    """Map a result count to the appropriate response strategy.
+
+    Used by the Planner's deterministic post-search routing and by the
+    AgentLoop's iteration-cap fallback to keep thresholds in one place.
+    """
+    if count == 0:
+        return "no_results"
+    if count <= 2:
+        return "narrow_results"
+    return "catalog_with_recommendation"
 
 
 # ---------------------------------------------------------------------------
@@ -265,21 +281,13 @@ class Planner:
             history = [{"role": "user", "content": history}]
 
         # Post-search deterministic routing — never delegate to LLM for these
-        if previous_results is not None:
-            count = len(previous_results)
-            if count >= 3:
-                return RespondAction(
-                    action="respond",
-                    response_strategy="catalog_with_recommendation",
-                    reasoning_trace="Sufficient results retrieved.",
-                )
-            if count >= 1:
-                return RespondAction(
-                    action="respond",
-                    response_strategy="narrow_results",
-                    reasoning_trace="Only 1–2 results retrieved.",
-                )
-        # previous_results is None (0-results or no search yet) — fall through to LLM
+        if previous_results is not None and len(previous_results) >= 1:
+            return RespondAction(
+                action="respond",
+                response_strategy=strategy_for_result_count(len(previous_results)),
+                reasoning_trace=f"{len(previous_results)} results retrieved.",
+            )
+        # previous_results is None or empty — fall through to LLM
 
         messages: list[dict] = [{"role": "system", "content": _SYSTEM_PROMPT}]
 
@@ -300,42 +308,51 @@ class Planner:
 
         messages.extend(history)
 
-        raw = self._llm.complete(messages, response_format=_PlannerSchema)
-        data = json.loads(raw)
+        raw = ""
+        try:
+            raw = self._llm.complete(messages, response_format=_PlannerSchema)
+            data = json.loads(raw)
 
-        action = data["action"]
-        trace = data.get("reasoning_trace", "")
+            action = data["action"]
+            trace = data.get("reasoning_trace", "")
 
-        if action == "clarify":
+            if action == "clarify":
+                return ClarifyAction(
+                    action="clarify",
+                    question=data["question"],
+                    reasoning_trace=trace,
+                )
+
+            if action == "search":
+                rewritten = self._rewriter.rewrite(history, evaluator_feedback=evaluator_feedback)
+                fh = rewritten.filter_hints
+                filters = SearchFilters(
+                    max_price=fh.get("max_price"),
+                    min_price=fh.get("min_price"),
+                    min_rating=fh.get("min_rating"),
+                    extra_filters=fh.get("extra_filters", {}),
+                )
+                return SearchAction(
+                    action="search",
+                    search_plan=SearchPlan(
+                        semantic_query=rewritten.semantic_query,
+                        filters=filters,
+                        sort_by=None,
+                    ),
+                    reasoning_trace=trace,
+                    intent_summary=rewritten.intent_summary,
+                )
+
+            # respond
+            return RespondAction(
+                action="respond",
+                response_strategy=data["response_strategy"],
+                reasoning_trace=trace,
+            )
+        except (json.JSONDecodeError, KeyError) as exc:
+            logger.warning("Planner JSON parse failed: %s — raw: %.200s", exc, raw)
             return ClarifyAction(
                 action="clarify",
-                question=data["question"],
-                reasoning_trace=trace,
+                question="Could you rephrase your request?",
+                reasoning_trace=f"JSON parse fallback: {exc}",
             )
-
-        if action == "search":
-            rewritten = self._rewriter.rewrite(history, evaluator_feedback=evaluator_feedback)
-            fh = rewritten.filter_hints
-            filters = SearchFilters(
-                max_price=fh.get("max_price"),
-                min_price=fh.get("min_price"),
-                min_rating=fh.get("min_rating"),
-                extra_filters=fh.get("extra_filters", {}),
-            )
-            return SearchAction(
-                action="search",
-                search_plan=SearchPlan(
-                    semantic_query=rewritten.semantic_query,
-                    filters=filters,
-                    sort_by=None,
-                ),
-                reasoning_trace=trace,
-                intent_summary=rewritten.intent_summary,
-            )
-
-        # respond
-        return RespondAction(
-            action="respond",
-            response_strategy=data["response_strategy"],
-            reasoning_trace=trace,
-        )

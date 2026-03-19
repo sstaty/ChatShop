@@ -236,6 +236,38 @@ def test_no_results_strategy_when_no_products():
     assert "survived" in system_content or "catalog" in system_content
 
 
+# ── run() — narrow_results fallback ───────────────────────────────────────────
+
+
+def test_narrow_results_strategy_at_cap():
+    """Cap hit with 1–2 products → synthesis uses 'narrow_results' strategy."""
+    planner = MagicMock()
+    planner.plan.return_value = _search_action()
+
+    evaluator = MagicMock()
+    evaluator.evaluate.return_value = _unsatisfied_eval("narrow_results")
+
+    search = MagicMock()
+    search.search.return_value = SearchResult(
+        products=_sample_products(), candidate_count=2, applied_filters={}
+    )
+
+    llm = MagicMock()
+    llm.complete.return_value = "Limited options."
+    llm.stream.return_value = iter(["Limited options."])
+
+    loop = AgentLoop(
+        planner=planner, evaluator=evaluator, hybrid_search=search, llm_client=llm, max_iterations=1
+    )
+    loop.run("headphones", history=[])
+
+    llm.stream.assert_called_once()
+    call_messages = llm.stream.call_args[0][0]
+    system_content = call_messages[0]["content"]
+    # The narrow_results strategy instruction mentions "1–2 products"
+    assert "1–2 products" in system_content
+
+
 # ── stream() ─────────────────────────────────────────────────────────────────
 
 
@@ -249,5 +281,8 @@ def test_stream_clarify_yields_question():
     clarify = ClarifyAction(action="clarify", question="What is your use case?", reasoning_trace="")
     loop = _make_loop([clarify])
     tokens = list(loop.stream("headphones", history=[]))
-    # Conversationist.clarify streams via llm.stream mock
     assert "".join(tokens) == "Here are my recommendations."
+    # Verify the raw question was passed through to the LLM
+    call_messages = loop._conversationist._llm.stream.call_args[0][0]
+    last_msg = call_messages[-1]["content"]
+    assert "What is your use case?" in last_msg
