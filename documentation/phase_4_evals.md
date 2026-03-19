@@ -361,9 +361,9 @@ tests/evals/
     golden_dataset.py        # EvalCase dataclass + GOLDEN_CASES list
     judge.py                 # LLM-as-judge: JudgeScores model, judge prompt, scoring logic
     metrics.py               # Deterministic comparison functions
-    runner.py                # Pipeline execution wrapper + caching
+    runner.py                # Pipeline execution + caching + Langfuse cost/latency collection
     test_eval.py             # Parametrized pytest entry point
-    report.py                # Results aggregation + console/markdown output
+    report.py                # Results aggregation + console/markdown output + auto-named report files
 ```
 
 ### conftest.py
@@ -454,6 +454,13 @@ After an eval run, `report.py` produces a summary:
 ```
 ═══ ChatShop Eval Report ═══
 
+Models:
+  planner:      gpt-4o-mini
+  rewriter:     gpt-4o-mini
+  evaluator:    gpt-4o-mini
+  synthesis:    gpt-4o-mini
+  judge:        gpt-4o-mini
+
 Action Routing:    24/25 (96.0%)
   clear_search:    8/8
   clarify:         5/5
@@ -473,7 +480,9 @@ Judge Scores (avg):        Ground  Help  Person  Constr  Overall
   multi_turn (3):            4.2   4.0    4.3     4.0     4.1
   OVERALL:                   4.3   4.0    4.3     4.0     4.2
 
-Total cost: ~$0.47 (pipeline: $0.31, judge: $0.16)
+Pipeline Stats (25 cases):
+  Avg cost/turn:     $0.012
+  Avg latency/turn:  1.8s
 ```
 
 ### Per-Case Detail
@@ -489,7 +498,116 @@ This makes debugging straightforward — you can see exactly where the pipeline 
 
 ### Markdown Output
 
-Optionally write results to `tests/evals/results/{timestamp}.md` for git-tracked history. Enables tracking quality trends over time as prompts or models change.
+Reports are saved to `tests/evals/results/` with auto-generated names encoding the model config and timestamp:
+
+```
+tests/evals/results/eval_gpt4o-mini_2026-03-19_143022.md
+tests/evals/results/eval_gpt4o_2026-03-19_150511.md
+```
+
+Naming convention: `eval_{primary_model}_{date}_{time}.md`
+
+The primary model is the planner model (the most impactful component). If multiple components use different models, the report header lists all of them — the filename is just for quick identification.
+
+This enables git-tracked history and side-by-side comparison of eval runs across different model configurations.
+
+---
+
+## Cost and Latency Tracking
+
+### Data Source: Langfuse
+
+Cost and latency data is pulled from Langfuse traces (Phase 3), not tracked in application code. This avoids duplicating instrumentation — Langfuse already captures per-generation token counts, cost, and latency for every LLM call.
+
+The eval runner queries Langfuse after each pipeline run to collect:
+
+- **Per-generation cost** — token count x model pricing, computed by Langfuse
+- **Per-generation latency** — wall-clock time for each LLM call
+- **Per-trace totals** — sum across all generations in one agent turn
+
+This data is aggregated in the eval report as pipeline-level stats.
+
+Requirement: Langfuse must be configured (env vars set) for cost/latency to appear in reports. If Langfuse is not configured, cost/latency fields show "N/A" and the eval still runs — quality metrics do not depend on observability.
+
+### Langfuse Integration in Runner
+
+The runner uses the Langfuse Python SDK to fetch trace data after each eval case completes:
+
+1. Each eval case runs through `AgentLoop.run_with_result()`, which creates a Langfuse trace (via existing Phase 3 instrumentation)
+2. After the pipeline completes, the runner calls `langfuse.fetch_trace(trace_id)` to get the full trace with generations
+3. Cost and latency are extracted from the trace's generation observations
+4. Results are stored alongside the `AgentResult` in the cache
+
+### What Gets Tracked
+
+| Metric | Source | Granularity |
+|--------|--------|-------------|
+| Token count (input/output) | Langfuse generation observations | Per LLM call |
+| Cost ($) | Langfuse cost calculation (model pricing) | Per LLM call, aggregated per case |
+| Latency (ms) | Langfuse generation `end_time - start_time` | Per LLM call, aggregated per case |
+
+The report shows **per-turn averages** (cost and latency) for the pipeline only — judge LLM calls are excluded. This gives a realistic picture of what one agent turn costs and how fast it responds, which is the number that matters for production.
+
+---
+
+## Model Comparison Workflow
+
+The eval system supports comparing different model configurations by running evals multiple times with different `.env` settings and comparing the saved reports.
+
+### Workflow
+
+1. Configure models in `.env`:
+   ```env
+   PLANNER_MODEL=gpt-4o-mini
+   QUERY_REWRITER_MODEL=gpt-4o-mini
+   EVALUATOR_MODEL=gpt-4o-mini
+   SYNTHESIS_MODEL=gpt-4o-mini
+   ```
+
+2. Run evals:
+   ```bash
+   uv run pytest -m eval -v
+   ```
+
+3. Report auto-saved to `tests/evals/results/eval_gpt4o-mini_2026-03-19_143022.md`
+
+4. Change models in `.env`:
+   ```env
+   PLANNER_MODEL=gpt-4o
+   QUERY_REWRITER_MODEL=gpt-4o-mini
+   EVALUATOR_MODEL=gpt-4o-mini
+   SYNTHESIS_MODEL=gpt-4o
+   ```
+
+5. Clear cache and re-run:
+   ```bash
+   EVAL_REFRESH=1 uv run pytest -m eval -v
+   ```
+
+6. Compare reports side by side:
+   ```bash
+   diff tests/evals/results/eval_gpt4o-mini_2026-03-19_143022.md \
+        tests/evals/results/eval_gpt4o_2026-03-19_150511.md
+   ```
+
+### What You Learn From Comparison
+
+Each saved report contains the full model config + accuracy + cost + latency, enabling trade-off analysis:
+
+```
+                    gpt-4o-mini     gpt-4o
+Action Routing:     96%             100%
+Filter Extraction:  88%             94%
+Judge Avg:          4.2             4.5
+Avg cost/turn:      $0.012          $0.067
+Avg latency/turn:   1.8s            3.2s
+```
+
+This answers the real question: is the accuracy improvement worth the cost increase?
+
+### Design Note: Why Not Auto-Run Multiple Configs?
+
+Running all model combinations in one command would be a combinatorial explosion (4 components x N models). The manual swap-and-run approach is simpler, cheaper (you only test configs you care about), and produces cleaner reports. Each run is self-contained and independently cacheable.
 
 ---
 
@@ -514,6 +632,7 @@ Everything else is new files under `tests/evals/`.
 | `src/chatshop/agent/planner.py` | `SearchFilters`, `SearchPlan`, `PlannerOutput` union types — deterministic checks compare against these |
 | `src/chatshop/agent/evaluator.py` | `EvaluatorOutput` dataclass, `_EvaluatorSchema` Pydantic pattern — judge follows same pattern |
 | `src/chatshop/infra/llm_client.py` | `LLMClient`, `llm_client_for()` — judge reuses existing LLM infrastructure |
+| `src/chatshop/infra/observability.py` | Langfuse wrapper — runner uses this to fetch trace data for cost/latency metrics |
 | `src/chatshop/ui/gradio_app.py` | `_get_agent_loop()` wiring — conftest fixture mirrors this pattern |
 | `src/chatshop/data/models.py` | `Product` model — for test fixtures and result serialization |
 
@@ -566,3 +685,11 @@ pytest gives fixtures, markers, parametrize, and existing CI integration for fre
 ### Why gpt-4o-mini as default judge model?
 
 Good enough for structured scoring at low cost. The judge only needs to assess quality on a 1-5 scale with a reason, not generate creative responses. Can be upgraded to gpt-4o or claude-sonnet if judge quality is insufficient.
+
+### Why pull cost/latency from Langfuse instead of tracking in LLMClient?
+
+Langfuse already captures per-generation token counts, cost, and latency as part of Phase 3 observability. Duplicating this in LLMClient would add complexity with no additional signal. The eval runner simply reads what Langfuse already records. If Langfuse is not configured, cost/latency show as "N/A" — quality metrics still work.
+
+### Why not auto-run multiple model configs?
+
+4 components x N model options = combinatorial explosion. The manual swap-and-run approach tests only configs you actually care about, produces cleaner reports, and each run is independently cacheable. The auto-named report files make comparison trivial.
