@@ -54,6 +54,34 @@ if TYPE_CHECKING:
 
 
 @dataclass
+class AgentResult:
+    """Structured output from a single agent turn, used by the eval system.
+
+    Captures intermediate pipeline state alongside the final response so
+    evals can run deterministic checks on action routing, filter extraction,
+    and response strategy without re-parsing streamed output.
+    """
+
+    planner_output: PlannerOutput
+    """The first planner decision for this turn (action, filters, strategy)."""
+
+    search_results: list[Product] | None
+    """Products returned by the search step, or None for clarify/respond turns."""
+
+    evaluator_output: EvaluatorOutput | None
+    """Evaluator diagnosis from the last search iteration, or None if no search ran."""
+
+    final_response: str
+    """The complete synthesized response text."""
+
+    iterations: int
+    """Number of plan→search→evaluate iterations completed before responding."""
+
+    trace_id: str | None = None
+    """Langfuse trace ID for this turn, used by the eval runner to fetch cost/latency."""
+
+
+@dataclass
 class TraceEvent:
     """A human-readable reasoning trace line emitted during the agent loop.
 
@@ -146,6 +174,88 @@ class AgentLoop:
     def run(self, message: str, history: list[dict]) -> str:
         """Run the full agent loop and return the final response string."""
         return "".join(self.stream(message, history))
+
+    def run_with_result(self, message: str, history: list[dict]) -> AgentResult:
+        """Run the full agent loop and return a structured :class:`AgentResult`.
+
+        Drives the same plan → search → evaluate cycle as
+        :meth:`stream_with_trace` but collects intermediate state instead of
+        yielding it. Used by the eval system to run deterministic checks on
+        action routing, filter extraction, and response strategy.
+
+        Langfuse tracing is enabled so the runner can fetch cost/latency after the run.
+        The ``trace_id`` field on the returned :class:`AgentResult` carries the trace ID.
+        """
+        trace = create_trace("agent_turn_eval", metadata={"user_message": message})
+        trace_id: str | None = getattr(trace, "id", None)
+
+        state = LoopState(history=history + [{"role": "user", "content": message}])
+        first_plan: PlannerOutput | None = None
+        last_eval: EvaluatorOutput | None = None
+
+        while state.iteration < self._max_iterations:
+            planner_span = create_span(trace, "planner", input={"iteration": state.iteration})
+            plan = self._planner.plan(
+                history=state.history,
+                previous_results=state.last_results or None,
+                evaluator_feedback=state.evaluator_feedback,
+                metadata=llm_metadata(planner_span, "planner"),
+            )
+            end_span(planner_span, output={"action": plan.action})
+            if first_plan is None:
+                first_plan = plan
+            state.last_plan = plan
+
+            if plan.action == "clarify":
+                conv_span = create_span(trace, "conversationist", input={"mode": "clarify"})
+                response = "".join(
+                    self._conversationist.clarify(plan.question, state.history, stream=True, metadata=llm_metadata(conv_span, "conversationist-clarify"))  # type: ignore[misc]
+                )
+                end_span(conv_span, output={"mode": "clarify"})
+                flush_observability()
+                return AgentResult(first_plan, None, None, response, state.iteration, trace_id)
+
+            if plan.action == "respond":
+                conv_span = create_span(trace, "conversationist", input={"mode": "synthesize", "strategy": plan.response_strategy})
+                response = "".join(
+                    self._conversationist.synthesize(  # type: ignore[misc]
+                        plan.response_strategy, state.history, state.last_results, stream=True,
+                        metadata=llm_metadata(conv_span, "conversationist-synthesize"),
+                    )
+                )
+                end_span(conv_span, output={"strategy": plan.response_strategy})
+                flush_observability()
+                return AgentResult(first_plan, state.last_results or None, last_eval, response, state.iteration, trace_id)
+
+            # action == "search"
+            sp = plan.search_plan
+            search_span = create_span(trace, "hybrid_search", input={"semantic_query": sp.semantic_query})
+            result = self._search.search(sp)
+            end_span(search_span, output={"candidate_count": result.candidate_count})
+
+            eval_span = create_span(trace, "evaluator", input={"candidate_count": result.candidate_count})
+            last_eval = self._evaluator.evaluate(
+                intent_summary=plan.intent_summary,
+                constraints=result.applied_filters,
+                products=result.products,
+                candidate_count=result.candidate_count,
+                metadata=llm_metadata(eval_span, "evaluator"),
+            )
+            end_span(eval_span, output={"diagnosis": last_eval.diagnosis})
+
+            state.last_results = result.products
+            state.evaluator_feedback = _format_feedback(last_eval, sp, result.candidate_count)
+            state.iteration += 1
+
+        # Iteration cap — respond with whatever we have
+        strategy = strategy_for_result_count(len(state.last_results))
+        conv_span = create_span(trace, "conversationist", input={"mode": "synthesize", "strategy": strategy})
+        response = "".join(
+            self._conversationist.synthesize(strategy, state.history, state.last_results, stream=True, metadata=llm_metadata(conv_span, "conversationist-synthesize"))  # type: ignore[misc]
+        )
+        end_span(conv_span, output={"strategy": strategy})
+        flush_observability()
+        return AgentResult(first_plan, state.last_results or None, last_eval, response, state.iteration, trace_id)
 
     def stream(self, message: str, history: list[dict]) -> Iterator[str]:
         """Run the agent loop and yield the final response token by token."""

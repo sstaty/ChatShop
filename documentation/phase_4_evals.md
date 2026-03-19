@@ -640,16 +640,27 @@ Everything else is new files under `tests/evals/`.
 
 ## Implementation Order
 
-1. `tests/evals/golden_dataset.py` + `__init__.py` — define `EvalCase` schema, write first 5 cases
-2. `AgentResult` + `run_with_result()` in `agent_loop.py` — expose structured pipeline output
-3. `tests/evals/conftest.py` — real AgentLoop fixture
-4. `tests/evals/metrics.py` — deterministic comparison functions
-5. `tests/evals/runner.py` — pipeline execution wrapper + caching
-6. `tests/evals/judge.py` — LLM-as-judge with Pydantic schema
-7. `tests/evals/test_eval.py` — parametrized pytest entry point
-8. `tests/evals/report.py` — aggregation + console output
-9. Fill remaining ~20 golden dataset cases
-10. `pyproject.toml` + `config.py` — marker + judge model setting
+1. `tests/evals/golden_dataset.py` + `__init__.py` — define `EvalCase` schema, write first 5 cases ✅
+2. `AgentResult` + `run_with_result()` in `agent_loop.py` — expose structured pipeline output ✅
+3. `tests/evals/conftest.py` — real AgentLoop fixture ✅
+4. `tests/evals/metrics.py` — deterministic comparison functions ✅
+5. `tests/evals/runner.py` — pipeline execution wrapper + caching ✅
+6. `tests/evals/judge.py` — LLM-as-judge with Pydantic schema ✅
+7. `tests/evals/test_eval.py` — parametrized pytest entry point ✅
+8. `tests/evals/report.py` — aggregation + console output ✅
+9. Fill remaining ~20 golden dataset cases ✅ (all 25 cases implemented in one pass)
+10. `pyproject.toml` + `config.py` — marker + judge model setting ✅
+
+## Implementation Notes (deviations from design)
+
+### `pytest_terminal_summary` for report generation
+The conftest uses a module-level `_eval_results` list (not `session._eval_results`) accumulated by `eval_results` fixture. Report is generated via `pytest_terminal_summary` hook — cleaner than a session-scoped finalizer fixture.
+
+### `run_with_result()` is an independent loop
+As designed, `run_with_result()` drives its own plan→search→evaluate loop without re-using `stream_with_trace()`. No Langfuse tracing — evals don't need per-call observability overhead. Langfuse cost/latency integration (fetching trace data post-run) is deferred — the doc noted it as optional and the report shows pipeline stats when available from other sources.
+
+### Cache key includes model config hash
+Cache files are named `{case_id}_{model_hash}.json` — invalidated automatically when model config changes, without needing `EVAL_REFRESH=1`.
 
 ---
 

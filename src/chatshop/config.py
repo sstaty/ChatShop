@@ -42,5 +42,8 @@ class Settings(BaseSettings):
     langfuse_secret_key: str = ""
     langfuse_host: str = "https://cloud.langfuse.com"
 
+    # Evals
+    eval_judge_model: str = "gpt-4o-mini"
+
 
 settings = Settings()

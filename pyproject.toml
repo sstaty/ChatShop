@@ -35,3 +35,5 @@ packages = ["src/chatshop"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+markers = ["eval: LLM evaluation tests (hit real APIs, cost money)"]
+addopts = "-m 'not eval'"
