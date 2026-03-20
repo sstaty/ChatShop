@@ -41,10 +41,15 @@ class JudgeScores(BaseModel):
     constraint_adherence_reason: str
 
     def overall(self) -> float:
-        """Average across all four dimensions."""
-        return (
-            self.groundedness + self.helpfulness + self.personality + self.constraint_adherence
-        ) / 4
+        """Average across applicable dimensions (excludes -1 N/A values)."""
+        scores = [
+            s for s in [
+                self.groundedness, self.helpfulness,
+                self.personality, self.constraint_adherence,
+            ]
+            if s >= 0
+        ]
+        return sum(scores) / len(scores) if scores else 0.0
 
 
 # ---------------------------------------------------------------------------
@@ -169,11 +174,11 @@ class EvalJudge:
         raw = self._llm.complete(messages, response_format=JudgeScores)
         data = json.loads(raw)
 
-        # For clarify cases, override non-applicable dimensions
+        # For clarify cases, override non-applicable dimensions with -1 sentinel
         if case.expected_action == "clarify":
-            data["groundedness"] = 0
+            data["groundedness"] = -1
             data["groundedness_reason"] = "N/A — clarify case"
-            data["constraint_adherence"] = 0
+            data["constraint_adherence"] = -1
             data["constraint_adherence_reason"] = "N/A — clarify case"
 
         return JudgeScores(**data)

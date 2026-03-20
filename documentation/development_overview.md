@@ -37,6 +37,17 @@ LLM Observability with Langfuse. Also: replaced LiteLLM with direct OpenAI SDK.
 - Deleted deprecated Phase 1 RAGChain (`rag/chain.py`)
 - Here you can find the [Observability Architecture](phase_3_observability.md)
 
+## Phase 4
+LLM Evaluation System. End-to-end evals of actual LLM behavior against a curated golden dataset.
+- 5-layer evaluation: deterministic checks (action routing, filter extraction, response strategy) as hard asserts; LLM-as-judge (retrieval relevance, response quality) as reported metrics
+- 25-case golden dataset in typed Python dataclasses covering: clear search, clarify, informational, off-topic, edge cases, and multi-turn conversations
+- Pipeline runner with `AgentResult` + `run_with_result()` exposing structured intermediate state (planner output, search results, evaluator output)
+- Cache layer keyed by `(case_id, model_config_hash)` — iterate on judge prompts without re-running expensive pipeline
+- LLM-as-judge scoring 4 dimensions: groundedness, helpfulness, personality, constraint adherence (1-5 scale, report only)
+- Markdown reports auto-saved to `tests/evals/results/` with model config + accuracy + cost + latency for side-by-side comparison
+- `@pytest.mark.eval` marker keeps evals out of default test runs; explicit trigger: `uv run pytest -m eval -v`
+- Here you can find the [Evaluation System Architecture](phase_4_evals.md)
+
 ## Phase xx - to categorize later
 
 High volume data: get broad data sets (10k + products), clean up, synthetise what's missing (Synthetic Data Augmentation) cleanup, etc.

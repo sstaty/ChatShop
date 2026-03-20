@@ -18,6 +18,9 @@ data/
 # ChromaDB persistent storage
 chroma_db/
 
+# Eval cache artifacts
+tests/evals/.cache/
+
 # Jupyter checkpoints
 .ipynb_checkpoints/
 

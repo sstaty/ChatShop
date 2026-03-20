@@ -361,7 +361,7 @@ tests/evals/
     golden_dataset.py        # EvalCase dataclass + GOLDEN_CASES list
     judge.py                 # LLM-as-judge: JudgeScores model, judge prompt, scoring logic
     metrics.py               # Deterministic comparison functions
-    runner.py                # Pipeline execution + caching + Langfuse cost/latency collection
+    runner.py                # Pipeline execution + caching
     test_eval.py             # Parametrized pytest entry point
     report.py                # Results aggregation + console/markdown output + auto-named report files
 ```

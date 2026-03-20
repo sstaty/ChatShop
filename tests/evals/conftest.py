@@ -5,6 +5,8 @@ Mirrors the wiring in gradio_app._get_agent_loop().
 
 from __future__ import annotations
 
+from typing import Any, Generator
+
 import pytest
 
 from chatshop.agent.agent_loop import AgentLoop
@@ -12,7 +14,11 @@ from chatshop.agent.evaluator import Evaluator
 from chatshop.agent.planner import Planner
 from chatshop.config import settings
 from chatshop.infra.llm_client import llm_client_for
-from chatshop.infra.observability import init_observability
+from chatshop.infra.observability import (
+    create_trace,
+    flush_observability,
+    init_observability,
+)
 from chatshop.rag.hybrid_search import HybridSearch
 from chatshop.rag.query_rewriter import QueryRewriter
 from chatshop.rag.retriever import Retriever
@@ -23,11 +29,35 @@ from tests.evals.report import generate_report
 # Module-level accumulator — appended to by test_eval.py during the session.
 _eval_results: list = []
 
+# Session-scoped Langfuse trace — all eval cases nest under this.
+_eval_trace: Any = None
+
 
 @pytest.fixture(scope="session")
-def agent_loop() -> AgentLoop:
-    """Real AgentLoop with real ChromaDB and real LLM calls."""
+def eval_trace() -> Generator[Any, None, None]:
+    """Single Langfuse trace for the entire eval session.
+
+    All eval cases are nested as spans under this trace so the full run
+    appears as one entry in the Langfuse dashboard.
+    """
+    global _eval_trace
     init_observability()
+    _eval_trace = create_trace(
+        "eval_session",
+        metadata={
+            "planner_model": settings.planner_model,
+            "rewriter_model": settings.query_rewriter_model,
+            "evaluator_model": settings.evaluator_model,
+            "synthesis_model": settings.synthesis_model,
+        },
+    )
+    yield _eval_trace
+    flush_observability()
+
+
+@pytest.fixture(scope="session")
+def agent_loop(eval_trace: Any) -> AgentLoop:
+    """Real AgentLoop with real ChromaDB and real LLM calls."""
     planner_llm = llm_client_for(settings.planner_model)
     rewriter_llm = llm_client_for(settings.query_rewriter_model)
     evaluator_llm = llm_client_for(settings.evaluator_model)

@@ -184,27 +184,3 @@ def flush_observability() -> None:
         logger.debug("Langfuse flush failed", exc_info=True)
 
 
-def fetch_trace_cost_usd(trace_id: str) -> float | None:
-    """Fetch the total LLM cost for a trace from Langfuse.
-
-    Sums ``total_cost`` across all generation observations in the trace.
-    Returns ``None`` if Langfuse is not configured or the fetch fails.
-
-    Note: Called after :func:`flush_observability` so data is already sent.
-    A short wait is included to allow server-side processing.
-    """
-    if _langfuse_client is None:
-        return None
-    try:
-        import time
-        time.sleep(2)  # Allow Langfuse server to process flushed events
-        observations = _langfuse_client.fetch_observations(trace_id=trace_id)
-        total = sum(
-            obs.total_cost
-            for obs in observations.data
-            if obs.total_cost is not None
-        )
-        return total if total > 0 else None
-    except Exception:
-        logger.debug("Failed to fetch Langfuse trace cost", exc_info=True)
-        return None

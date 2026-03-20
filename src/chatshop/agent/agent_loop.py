@@ -78,7 +78,7 @@ class AgentResult:
     """Number of plan→search→evaluate iterations completed before responding."""
 
     trace_id: str | None = None
-    """Langfuse trace ID for this turn, used by the eval runner to fetch cost/latency."""
+    """Langfuse trace ID for this turn (informational)."""
 
 
 @dataclass
@@ -175,7 +175,9 @@ class AgentLoop:
         """Run the full agent loop and return the final response string."""
         return "".join(self.stream(message, history))
 
-    def run_with_result(self, message: str, history: list[dict]) -> AgentResult:
+    def run_with_result(
+        self, message: str, history: list[dict], *, parent_trace: object | None = None,
+    ) -> AgentResult:
         """Run the full agent loop and return a structured :class:`AgentResult`.
 
         Drives the same plan → search → evaluate cycle as
@@ -183,10 +185,13 @@ class AgentLoop:
         yielding it. Used by the eval system to run deterministic checks on
         action routing, filter extraction, and response strategy.
 
-        Langfuse tracing is enabled so the runner can fetch cost/latency after the run.
-        The ``trace_id`` field on the returned :class:`AgentResult` carries the trace ID.
+        If *parent_trace* is provided (a Langfuse trace or span), this run is
+        nested under it as a span instead of creating a new top-level trace.
         """
-        trace = create_trace("agent_turn_eval", metadata={"user_message": message})
+        if parent_trace is not None:
+            trace = create_span(parent_trace, "agent_turn_eval", input={"user_message": message})
+        else:
+            trace = create_trace("agent_turn_eval", metadata={"user_message": message})
         trace_id: str | None = getattr(trace, "id", None)
 
         state = LoopState(history=history + [{"role": "user", "content": message}])
@@ -212,7 +217,10 @@ class AgentLoop:
                     self._conversationist.clarify(plan.question, state.history, stream=True, metadata=llm_metadata(conv_span, "conversationist-clarify"))  # type: ignore[misc]
                 )
                 end_span(conv_span, output={"mode": "clarify"})
-                flush_observability()
+                if parent_trace is not None:
+                    end_span(trace, output={"action": "clarify"})
+                else:
+                    flush_observability()
                 return AgentResult(first_plan, None, None, response, state.iteration, trace_id)
 
             if plan.action == "respond":
@@ -224,7 +232,10 @@ class AgentLoop:
                     )
                 )
                 end_span(conv_span, output={"strategy": plan.response_strategy})
-                flush_observability()
+                if parent_trace is not None:
+                    end_span(trace, output={"action": "respond"})
+                else:
+                    flush_observability()
                 return AgentResult(first_plan, state.last_results or None, last_eval, response, state.iteration, trace_id)
 
             # action == "search"
@@ -254,7 +265,10 @@ class AgentLoop:
             self._conversationist.synthesize(strategy, state.history, state.last_results, stream=True, metadata=llm_metadata(conv_span, "conversationist-synthesize"))  # type: ignore[misc]
         )
         end_span(conv_span, output={"strategy": strategy})
-        flush_observability()
+        if parent_trace is not None:
+            end_span(trace, output={"action": "respond", "capped": True})
+        else:
+            flush_observability()
         return AgentResult(first_plan, state.last_results or None, last_eval, response, state.iteration, trace_id)
 
     def stream(self, message: str, history: list[dict]) -> Iterator[str]:

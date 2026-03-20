@@ -21,7 +21,6 @@ from chatshop.config import settings
 
 from tests.evals.golden_dataset import EvalCase
 from tests.evals.metrics import check_filters, check_strategy
-from tests.evals.runner import get_cached_stats
 
 if TYPE_CHECKING:
     from chatshop.agent.agent_loop import AgentResult
@@ -92,7 +91,7 @@ def _build_report_lines(
     results: list[tuple[EvalCase, AgentResult, JudgeScores | None]],
 ) -> list[str]:
     lines: list[str] = []
-    lines.append("═══ ChatShop Eval Report ═══")
+    lines.append("=== ChatShop Eval Report ===")
     lines.append("")
 
     # Models
@@ -190,54 +189,38 @@ def _build_report_lines(
         def _fmt_score(val: float, is_na: bool) -> str:
             return " N/A" if is_na else f"{val:.1f}"
 
+        def _avg(scores: list[JudgeScores], attr: str) -> float | None:
+            """Average a dimension, excluding -1 N/A sentinels. Returns None if all N/A."""
+            vals = [getattr(s, attr) for s in scores if getattr(s, attr) >= 0]
+            return sum(vals) / len(vals) if vals else None
+
         for cat in sorted(scores_by_cat.keys()):
             cat_scores = scores_by_cat[cat]
-            is_clarify = cat == "clarify"
             n = len(cat_scores)
-            avg_g = sum(s.groundedness for s in cat_scores) / n if not is_clarify else 0.0
-            avg_h = sum(s.helpfulness for s in cat_scores) / n
-            avg_p = sum(s.personality for s in cat_scores) / n
-            avg_c = sum(s.constraint_adherence for s in cat_scores) / n if not is_clarify else 0.0
+            avg_g = _avg(cat_scores, "groundedness")
+            avg_h = _avg(cat_scores, "helpfulness")
+            avg_p = _avg(cat_scores, "personality")
+            avg_c = _avg(cat_scores, "constraint_adherence")
             avg_o = sum(s.overall() for s in cat_scores) / n
             label = f"  {cat} ({n}):"
             lines.append(
-                f"{label:<27}{_fmt_score(avg_g, is_clarify):>5}  "
-                f"{avg_h:.1f}   {avg_p:.1f}    {_fmt_score(avg_c, is_clarify):>4}    {avg_o:.1f}"
+                f"{label:<27}{_fmt_score(avg_g or 0, avg_g is None):>5}  "
+                f"{avg_h:.1f}   {avg_p:.1f}    {_fmt_score(avg_c or 0, avg_c is None):>4}    {avg_o:.1f}"
             )
 
         # OVERALL row
         all_scores = [s for _, _, s in judge_results]
         n_all = len(all_scores)
-        non_clarify_scores = [s for c, _, s in judge_results if c.expected_action != "clarify"]
-        avg_g_all = sum(s.groundedness for s in non_clarify_scores) / len(non_clarify_scores) if non_clarify_scores else 0.0
-        avg_h_all = sum(s.helpfulness for s in all_scores) / n_all
-        avg_p_all = sum(s.personality for s in all_scores) / n_all
-        avg_c_all = sum(s.constraint_adherence for s in non_clarify_scores) / len(non_clarify_scores) if non_clarify_scores else 0.0
+        avg_g_all = _avg(all_scores, "groundedness")
+        avg_h_all = _avg(all_scores, "helpfulness")
+        avg_p_all = _avg(all_scores, "personality")
+        avg_c_all = _avg(all_scores, "constraint_adherence")
         avg_o_all = sum(s.overall() for s in all_scores) / n_all
         lines.append(
-            f"  {'OVERALL:':<25}{avg_g_all:>5.1f}  "
-            f"{avg_h_all:.1f}   {avg_p_all:.1f}    {avg_c_all:>4.1f}    {avg_o_all:.1f}"
+            f"  {'OVERALL:':<25}{_fmt_score(avg_g_all or 0, avg_g_all is None):>5}  "
+            f"{avg_h_all:.1f}   {avg_p_all:.1f}    {_fmt_score(avg_c_all or 0, avg_c_all is None):>4}    {avg_o_all:.1f}"
         )
         lines.append("")
-
-    # ------------------------------------------------------------------
-    # Pipeline Stats
-    # ------------------------------------------------------------------
-    costs = []
-    latencies = []
-    for case, _, _scores in results:
-        cost_usd, latency_ms = get_cached_stats(case.id)
-        if cost_usd is not None:
-            costs.append(cost_usd)
-        if latency_ms is not None:
-            latencies.append(latency_ms)
-
-    lines.append(f"Pipeline Stats ({total_cases} cases):")
-    cost_str = f"${sum(costs)/len(costs):.3f}" if costs else "N/A"
-    latency_str = f"{sum(latencies)/len(latencies)/1000:.1f}s" if latencies else "N/A"
-    lines.append(f"  Avg cost/turn:     {cost_str}")
-    lines.append(f"  Avg latency/turn:  {latency_str}")
-    lines.append("")
 
     # ------------------------------------------------------------------
     # Per-case detail for failures and low scores
@@ -255,7 +238,7 @@ def _build_report_lines(
             failed_cases[case.id] = (case, result, scores)
 
     if failed_cases:
-        lines.append("─── Case Details (failures / low scores) ───")
+        lines.append("--- Case Details (failures / low scores) ---")
         lines.append("")
 
         for case_id, (case, result, scores) in failed_cases.items():

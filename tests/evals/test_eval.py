@@ -9,6 +9,8 @@ Run with:
 
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
 from chatshop.agent.agent_loop import AgentLoop, AgentResult
@@ -27,8 +29,18 @@ def test_eval(
     agent_loop: AgentLoop,
     eval_judge: EvalJudge,
     eval_results: list,
+    eval_trace: Any,
 ) -> None:
-    result: AgentResult = run_or_cached(case, agent_loop)
+    result: AgentResult = run_or_cached(case, agent_loop, parent_trace=eval_trace)
+
+    # ------------------------------------------------------------------
+    # Layers 4-5: Judge scores — collected BEFORE hard asserts so that
+    # every case appears in the report regardless of pass/fail outcome.
+    # ------------------------------------------------------------------
+    scores = None
+    if result.final_response:
+        scores = eval_judge.score(case, result)
+    eval_results.append((case, result, scores))
 
     # ------------------------------------------------------------------
     # Layer 1: Action routing (hard assert)
@@ -62,10 +74,3 @@ def test_eval(
             f"[{case.id}] Expected strategy={case.expected_response_strategy!r}, "
             f"got={result.planner_output.response_strategy!r}"
         )
-
-    # ------------------------------------------------------------------
-    # Layers 4-5: Judge scores (collect, NEVER assert)
-    # ------------------------------------------------------------------
-    if result.final_response:
-        scores = eval_judge.score(case, result)
-        eval_results.append((case, result, scores))

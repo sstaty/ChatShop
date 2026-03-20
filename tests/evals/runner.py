@@ -9,9 +9,6 @@ run_or_cached(case, agent_loop) -> AgentResult
 Cache path: tests/evals/.cache/{case_id}.json
 Cache key includes a hash of the model config so cache is invalidated when
 models change.
-
-Each cached entry stores the AgentResult plus cost_usd and latency_ms.
-These are exposed via get_cached_stats(case_id) for use in report.py.
 """
 
 from __future__ import annotations
@@ -19,11 +16,10 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-import time
 from pathlib import Path
+from typing import Any
 
 from chatshop.agent.agent_loop import AgentLoop, AgentResult
-from chatshop.infra.observability import fetch_trace_cost_usd, langfuse_enabled
 from chatshop.agent.evaluator import EvaluatorOutput
 from chatshop.agent.planner import (
     ClarifyAction,
@@ -65,7 +61,7 @@ def _cache_path(case_id: str) -> Path:
 # ---------------------------------------------------------------------------
 
 
-def _serialize_result(result: AgentResult, cost_usd: float | None, latency_ms: float | None) -> dict:
+def _serialize_result(result: AgentResult) -> dict:
     plan = result.planner_output
     plan_dict: dict = {"action": plan.action, "reasoning_trace": plan.reasoning_trace}
 
@@ -106,8 +102,6 @@ def _serialize_result(result: AgentResult, cost_usd: float | None, latency_ms: f
         "final_response": result.final_response,
         "iterations": result.iterations,
         "trace_id": result.trace_id,
-        "cost_usd": cost_usd,
-        "latency_ms": latency_ms,
     }
 
 
@@ -173,7 +167,9 @@ def _deserialize_result(data: dict) -> AgentResult:
 # ---------------------------------------------------------------------------
 
 
-def run_or_cached(case: EvalCase, agent_loop: AgentLoop) -> AgentResult:
+def run_or_cached(
+    case: EvalCase, agent_loop: AgentLoop, *, parent_trace: Any = None,
+) -> AgentResult:
     """Run the pipeline for *case* or return a cached result.
 
     The cache is keyed by ``(case_id, model_config_hash)`` so it
@@ -181,8 +177,8 @@ def run_or_cached(case: EvalCase, agent_loop: AgentLoop) -> AgentResult:
 
     Set ``EVAL_REFRESH=1`` to force a fresh pipeline run regardless of cache.
 
-    Cost and latency are stored in the cache alongside the AgentResult.
-    Retrieve them via :func:`get_cached_stats`.
+    If *parent_trace* is provided, the agent loop nests its spans under it
+    so all eval cases appear in a single Langfuse trace.
     """
     path = _cache_path(case.id)
     refresh = os.environ.get("EVAL_REFRESH", "0") == "1"
@@ -191,31 +187,11 @@ def run_or_cached(case: EvalCase, agent_loop: AgentLoop) -> AgentResult:
         data = json.loads(path.read_text(encoding="utf-8"))
         return _deserialize_result(data)
 
-    t0 = time.perf_counter()
-    result = agent_loop.run_with_result(case.query, case.history)
-    latency_ms = (time.perf_counter() - t0) * 1000
-
-    # Fetch cost from Langfuse if tracing is enabled and we have a trace_id
-    cost_usd: float | None = None
-    if langfuse_enabled() and result.trace_id:
-        cost_usd = fetch_trace_cost_usd(result.trace_id)
+    result = agent_loop.run_with_result(case.query, case.history, parent_trace=parent_trace)
 
     _CACHE_DIR.mkdir(parents=True, exist_ok=True)
     path.write_text(
-        json.dumps(_serialize_result(result, cost_usd, latency_ms), indent=2, ensure_ascii=False),
+        json.dumps(_serialize_result(result), indent=2, ensure_ascii=False),
         encoding="utf-8",
     )
     return result
-
-
-def get_cached_stats(case_id: str) -> tuple[float | None, float | None]:
-    """Return ``(cost_usd, latency_ms)`` from the cache for *case_id*.
-
-    Returns ``(None, None)`` if no cache entry exists for this case.
-    Used by report.py to build the Pipeline Stats section.
-    """
-    path = _cache_path(case_id)
-    if not path.exists():
-        return None, None
-    data = json.loads(path.read_text(encoding="utf-8"))
-    return data.get("cost_usd"), data.get("latency_ms")
