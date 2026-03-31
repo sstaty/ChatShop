@@ -55,3 +55,9 @@ Tests and evals: Golden dataset. Eval retrieval. Eval hard questions. Eval costs
 Cost optimization: frontier LLM for thinking & reasoning, fine-tuned open-source for simpler tasks, e.g. JSON outputs (use Outlines or Guidance to guarantee proper JSON structure). Deploy on modal.
 Proper web Frontend (react.js), backend (fastAPI), vercel + docker for deployment. Add product cards. Dashboards, thinking (?)
 
+## Latest Implementation Notes
+- Frontend baseline chat page is now functional in `frontend/src/app/page.tsx`.
+- It supports input + send button + message list, and posts to `http://localhost:8000/chat`.
+- Backend response is appended to the same message list.
+- Added basic modern chatbot visuals: light blue page background, centered rounded chat container, message bubbles, and styled input/send controls.
+
