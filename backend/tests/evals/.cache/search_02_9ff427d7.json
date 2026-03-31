@@ -1,0 +1,114 @@
+{
+  "planner_output": {
+    "action": "search",
+    "reasoning_trace": "The user is asking for noise-cancelling headphones with a clear budget constraint ($200) and a clear form factor (headphones, which typically implies over-ear in the context of ANC). Both critical pieces of information are present: budget is specified, and the product type is implied by 'headphones' + 'noise cancelling' (ANC is most commonly associated with over-ear models). No clarification is needed. This is a straightforward product search query.",
+    "intent_summary": "User is looking for the best noise cancelling headphones within a budget of $200.",
+    "search_plan": {
+      "semantic_query": "best noise-cancelling headphones",
+      "sort_by": null,
+      "filters": {
+        "max_price": 200,
+        "min_price": null,
+        "extra_filters": {
+          "anc": true
+        }
+      }
+    }
+  },
+  "search_results": [
+    {
+      "product_id": "15",
+      "title": "Sony WH-CH720N",
+      "description": "Sony WH-CH720N proves that world-class noise cancellation doesn't have to cost a fortune. At just 192 grams, these are among the lightest noise-cancelling headphones ever made, making them ideal for long journeys where comfort is paramount. Sony's Integrated Processor V1 delivers surprisingly effective ANC that punches well above its price point, while 360 Reality Audio creates an immersive spatial audio experience. The 30mm drivers deliver Sony's signature balanced sound with surprising bass ex",
+      "price": 149.0,
+      "brand": "Sony",
+      "type": "over-ear",
+      "wireless": true,
+      "anc": true,
+      "battery_hours": 35,
+      "waterproof_rating": null,
+      "driver_size_mm": 30.0,
+      "use_cases": [
+        "travel",
+        "office"
+      ]
+    },
+    {
+      "product_id": "67",
+      "title": "Audio-Technica Nova 3",
+      "description": "Audio-Technica QuietPoint ATH-ANC900BT brings Japanese acoustic precision and reliability to a feature-rich wireless headphone at an accessible price. The 40mm driver system is engineered for the natural, musical sound profile Audio-Technica has perfected over decades in professional studio monitor design. Hybrid Digital Active Noise Cancelling with four microphones produces effective isolation from transportation and environmental noise during commutes. The folding design with premium carrying ",
+      "price": 99.0,
+      "brand": "Audio-Technica",
+      "type": "over-ear",
+      "wireless": true,
+      "anc": true,
+      "battery_hours": 50,
+      "waterproof_rating": null,
+      "driver_size_mm": 40.0,
+      "use_cases": [
+        "travel",
+        "office"
+      ]
+    },
+    {
+      "product_id": "73",
+      "title": "Wyze Wyze Headphones",
+      "description": "Wyze Headphones deliver genuinely impressive ANC performance at a price that challenges the value proposition of headphones three times the cost. Active Noise Cancellation effectively reduces broadband environmental noise, providing welcome relief from office HVAC noise, traffic, and urban ambience. The 40mm drivers are tuned for a balanced, musical response with satisfying bass extension and clear vocals. The soft leatherette ear cups and padded headband provide comfortable wear during extended",
+      "price": 49.0,
+      "brand": "Wyze",
+      "type": "over-ear",
+      "wireless": true,
+      "anc": true,
+      "battery_hours": 40,
+      "waterproof_rating": null,
+      "driver_size_mm": 40.0,
+      "use_cases": [
+        "office",
+        "travel"
+      ]
+    },
+    {
+      "product_id": "42",
+      "title": "Anker Soundcore Liberty Air 2 Pro",
+      "description": "Anker Soundcore Liberty Air 2 Pro delivers premium noise cancellation at a price that makes flagship earbuds seem wasteful. The PureNote 11mm driver with carbon nanotube composite diaphragm reproduces detailed, natural sound with a frequency response extending to 40kHz for Hi-Res certification. Three levels of HearID-personalised ANC adapts to your unique ear shape for maximum noise reduction tailored specifically to your anatomy. Transparency mode lets in natural ambient sound when you need sit",
+      "price": 79.0,
+      "brand": "Anker",
+      "type": "in-ear",
+      "wireless": true,
+      "anc": true,
+      "battery_hours": 7,
+      "waterproof_rating": "IPX4",
+      "driver_size_mm": 11.0,
+      "use_cases": [
+        "travel",
+        "office"
+      ]
+    },
+    {
+      "product_id": "13",
+      "title": "Anker Soundcore Liberty 4 NC",
+      "description": "Anker Soundcore Liberty 4 NC delivers flagship-level noise cancellation at a fraction of the premium price. The 98.5% noise reduction rating covers a wider frequency range than most competing earbuds at twice the price, creating a truly peaceful listening environment. The 11mm drivers reproduce LDAC Hi-Res audio with stunning detail and warmth, while custom-tuned bass ensures your favourite tracks hit hard. Adaptive ANC automatically adjusts based on your activities, whether you're running, comm",
+      "price": 79.0,
+      "brand": "Anker",
+      "type": "in-ear",
+      "wireless": true,
+      "anc": true,
+      "battery_hours": 9,
+      "waterproof_rating": "IPX4",
+      "driver_size_mm": 11.0,
+      "use_cases": [
+        "travel",
+        "office",
+        "sport"
+      ]
+    }
+  ],
+  "evaluator_output": {
+    "diagnosis": "sufficient",
+    "blocking_constraints": [],
+    "reason": "Good selection of noise cancelling headphones under $200 — results look solid."
+  },
+  "final_response": "For the best noise-cancelling headphones under $200, look no further than the Sony WH-CH720N, priced at $149. These featherlight over-ear beauties pack a punch with their robust Active Noise Cancellation, courtesy of Sony's Integrated Processor V1, ensuring your auditory journey is blissfully distraction-free. The 30mm drivers deliver a balanced sound signature with just the right amount of bass, perfect for long flights or commutes. Comfort and performance come together like a match made in audio heaven, making these a top contender for your ears.\n\nWant something cheaper? The Wyze Headphones at just $49 offer surprisingly effective ANC and a balanced sound profile, perfect for casual listeners. After longer battery life? The Audio-Technica Nova 3 boasts an impressive 50 hours of playtime for those marathon listening sessions. Looking for something more portable? The Anker Soundcore Liberty Air 2 Pro at $79 delivers excellent noise cancellation in a compact, in-ear design that's perfect for on-the-go experiences.",
+  "iterations": 1,
+  "trace_id": "76f08961-c60c-49e5-95ad-8cf757d70a0e"
+}

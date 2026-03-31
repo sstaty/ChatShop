@@ -1,0 +1,111 @@
+{
+  "planner_output": {
+    "action": "search",
+    "reasoning_trace": "The user is asking for 'cheap bluetooth earbuds'. They have provided: (1) a clear form factor preference (earbuds/bluetooth), and (2) a budget constraint ('cheap', which indicates price-sensitive/budget-conscious). The use case is not specified, but for earbuds, budget and form factor are the primary filters. This is sufficient to perform a search. No clarification needed.",
+    "intent_summary": "User wants inexpensive wireless earbuds.",
+    "search_plan": {
+      "semantic_query": "affordable wireless bluetooth earbuds budget-friendly",
+      "sort_by": null,
+      "filters": {
+        "max_price": null,
+        "min_price": null,
+        "extra_filters": {
+          "wireless": true
+        }
+      }
+    }
+  },
+  "search_results": [
+    {
+      "product_id": "74",
+      "title": "Huawei FreeBuds SE 2",
+      "description": "Huawei FreeBuds SE 2 earbuds provide a complete, well-rounded truly wireless experience at an entry-level price that makes premium audio accessible for everyone. The 10mm dynamic driver with carbon crystal diaphragm produces clean, vibrant sound with natural bass extension and clear vocal reproduction. The semi-open fit design sits comfortably in the outer ear without insertion, providing a light, pressure-free wearing experience ideal for extended commutes. IPX4 water resistance handles light r",
+      "price": 59.0,
+      "brand": "Huawei",
+      "type": "in-ear",
+      "wireless": true,
+      "anc": false,
+      "battery_hours": 9,
+      "waterproof_rating": "IPX4",
+      "driver_size_mm": 10.0,
+      "use_cases": [
+        "sport",
+        "travel"
+      ]
+    },
+    {
+      "product_id": "79",
+      "title": "JBL Vibe 200TWS",
+      "description": "JBL Vibe 200TWS brings JBL's authentic Pure Bass Sound to the most affordable truly wireless earbuds in the lineup, making high-quality wireless audio available to everyone. The 8mm JBL drivers deliver the energetic, bass-forward sound characteristic of JBL at a price that makes these accessible for a first foray into truly wireless audio. The stick-style design sits naturally in the ear canal with a lightweight, comfortable fit that won't cause fatigue during daily use. Simple one-button contro",
+      "price": 29.0,
+      "brand": "JBL",
+      "type": "in-ear",
+      "wireless": true,
+      "anc": false,
+      "battery_hours": 7,
+      "waterproof_rating": null,
+      "driver_size_mm": 8.0,
+      "use_cases": [
+        "travel"
+      ]
+    },
+    {
+      "product_id": "43",
+      "title": "JBL Tune 230NC TWS",
+      "description": "JBL Tune 230NC TWS brings JBL's signature Pure Bass Sound and active noise cancellation to the most budget-friendly truly wireless earbud in its lineup. Despite the entry-level price, Active Noise Cancellation provides meaningful noise reduction for commutes and light office environments. The 6mm JBL drivers deliver the lively, bass-forward sound that JBL listeners expect, with enough energy to keep your commute entertaining. Ambient Aware mode lets in essential environmental sounds when needed ",
+      "price": 39.0,
+      "brand": "JBL",
+      "type": "in-ear",
+      "wireless": true,
+      "anc": true,
+      "battery_hours": 8,
+      "waterproof_rating": null,
+      "driver_size_mm": 6.0,
+      "use_cases": [
+        "travel"
+      ]
+    },
+    {
+      "product_id": "14",
+      "title": "JBL Tune Buds",
+      "description": "JBL Tune Buds bring JBL's legendary Pure Bass Sound into an affordable truly wireless package that doesn't compromise on the essentials. Active Noise Cancellation silences commute noise effectively, while Ambient Aware mode keeps you connected to your surroundings when safety matters. The 10mm JBL drivers produce punchy, energetic sound with the deep bass response the brand is famous for. Four ear tip sizes ensure a comfortable, sealed fit for maximum sound isolation and bass extension. Up to 8 ",
+      "price": 49.0,
+      "brand": "JBL",
+      "type": "in-ear",
+      "wireless": true,
+      "anc": true,
+      "battery_hours": 8,
+      "waterproof_rating": "IPX4",
+      "driver_size_mm": 10.0,
+      "use_cases": [
+        "travel",
+        "sport"
+      ]
+    },
+    {
+      "product_id": "27",
+      "title": "1More True Wireless X",
+      "description": "1More True Wireless X earbuds offer an exceptional balance of sound quality, comfort, and durability at an approachable price. The 10mm composite mesh diaphragm driver reproduces a vivid sound with punchy bass and clear, detailed highs that rival earbuds at double the price. The ergonomic semi-in-ear design provides a comfortable, secure fit for active use without the discomfort of deep insertion tips. IPX5 splash resistance handles sweat-drenched workouts and outdoor adventures with ease. A 35m",
+      "price": 69.0,
+      "brand": "1More",
+      "type": "in-ear",
+      "wireless": true,
+      "anc": false,
+      "battery_hours": 7,
+      "waterproof_rating": "IPX5",
+      "driver_size_mm": 10.0,
+      "use_cases": [
+        "sport",
+        "travel"
+      ]
+    }
+  ],
+  "evaluator_output": {
+    "diagnosis": "sufficient",
+    "blocking_constraints": [],
+    "reason": "Good selection of 5 wireless earbuds ranging from $29 to $69, with multiple budget-friendly options under $50 that clearly satisfy the user's intent for inexpensive wireless earbuds."
+  },
+  "final_response": "# Your Top Pick\n\nThe **JBL Vibe 200TWS at $29** is the absolute steal here—genuinely hard to beat at that price. You're getting JBL's signature punchy, bass-forward sound from an 8mm driver, a lightweight stick design that won't bug your ears, and 7 hours of battery life. For someone just dipping into wireless audio without breaking the bank, this is the no-brainer.\n\nWant a bit more staying power? The **Huawei FreeBuds SE 2 at $59** stretches to 9 hours and adds IPX4 water resistance plus a roomier 10mm driver for richer sound. Need noise cancellation on a budget? The **JBL Tune 230NC TWS at $39** brings ANC into play—not premium-grade, but genuinely useful for commutes. After something with more punch and durability? The **JBL Tune Buds at $49** stack on real ANC, IPX4 waterproofing, and a beefier 10mm driver that'll handle workouts without flinching.",
+  "iterations": 1,
+  "trace_id": "28badd7b-1813-4b02-a8d7-bb4cb524d198"
+}

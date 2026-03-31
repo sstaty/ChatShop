@@ -1,0 +1,12 @@
+{
+  "planner_output": {
+    "action": "clarify",
+    "reasoning_trace": "The user has provided a battery requirement, but no budget and no form factor preference beyond 'earbuds' being implied. Since the query is missing critical context that would significantly change retrieval, I should ask one focused question that captures the remaining key constraint(s).",
+    "question": "What’s your budget, and do you want true wireless earbuds or are wired earbuds okay?"
+  },
+  "search_results": null,
+  "evaluator_output": null,
+  "final_response": "Got it! Before I dive into the selection, could you share your budget and whether you prefer the freedom of true wireless earbuds or if wired ones will do the trick?",
+  "iterations": 0,
+  "trace_id": "2ebbd641-5260-407d-bc4d-f904b8f7a968"
+}

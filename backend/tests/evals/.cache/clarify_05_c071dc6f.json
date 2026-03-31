@@ -1,0 +1,12 @@
+{
+  "planner_output": {
+    "action": "clarify",
+    "reasoning_trace": "The user is asking for 'a good pair of headphones' but has provided no critical context. They haven't specified: (1) budget/price range, (2) form factor preference (over-ear, on-ear, or in-ear earbuds), or (3) primary use case. Without at least budget and form factor, the search space is too broad. I need to ask one focused question covering the most important missing pieces to narrow down the recommendation.",
+    "question": "What's your budget, and do you prefer over-ear headphones, on-ear, or in-ear earbuds? Also, what will you mainly use them for (music, gaming, workouts, travel, etc.)?"
+  },
+  "search_results": null,
+  "evaluator_output": null,
+  "final_response": "Ooh, excellent—let's find you something *actually* worth your ears! Quick question: What's your budget looking like, and are you thinking over-ear, on-ear, or earbuds? Also, what's the main mission—music, gaming, workouts, or something else?",
+  "iterations": 0,
+  "trace_id": "d62965d4-b7bc-4304-819e-5370275bf7c5"
+}

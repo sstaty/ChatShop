@@ -1,0 +1,114 @@
+{
+  "planner_output": {
+    "action": "search",
+    "reasoning_trace": "The user has now provided a budget, so clarification is no longer needed. The remaining missing detail is form factor/type, but the instructions say once the user has answered a clarifying question (budget or type provided) → search, do not clarify again. The use case is commuting, which can fit either earbuds or over-ear headphones, so proceed to search rather than asking again.",
+    "intent_summary": "User is looking for noise-cancelling headphones suitable for commuting under $100.",
+    "search_plan": {
+      "semantic_query": "noise-cancelling headphones portable long battery life",
+      "sort_by": null,
+      "filters": {
+        "max_price": 100,
+        "min_price": null,
+        "extra_filters": {
+          "anc": true
+        }
+      }
+    }
+  },
+  "search_results": [
+    {
+      "product_id": "67",
+      "title": "Audio-Technica Nova 3",
+      "description": "Audio-Technica QuietPoint ATH-ANC900BT brings Japanese acoustic precision and reliability to a feature-rich wireless headphone at an accessible price. The 40mm driver system is engineered for the natural, musical sound profile Audio-Technica has perfected over decades in professional studio monitor design. Hybrid Digital Active Noise Cancelling with four microphones produces effective isolation from transportation and environmental noise during commutes. The folding design with premium carrying ",
+      "price": 99.0,
+      "brand": "Audio-Technica",
+      "type": "over-ear",
+      "wireless": true,
+      "anc": true,
+      "battery_hours": 50,
+      "waterproof_rating": null,
+      "driver_size_mm": 40.0,
+      "use_cases": [
+        "travel",
+        "office"
+      ]
+    },
+    {
+      "product_id": "7",
+      "title": "Anker Soundcore Life Q35",
+      "description": "Anker Soundcore Life Q35 delivers premium features at an unbeatable price. LDAC codec support ensures you're receiving Hi-Res wireless audio with three times more data than standard Bluetooth connections. Three levels of adaptive noise cancellation intelligently analyze your environment and filter distractions accordingly, making these ideal for commuting, studying, and open offices. The generous 40mm drivers produce powerful bass and clear vocals balanced by Soundcore's proprietary BassUp techn",
+      "price": 79.0,
+      "brand": "Anker",
+      "type": "over-ear",
+      "wireless": true,
+      "anc": true,
+      "battery_hours": 40,
+      "waterproof_rating": null,
+      "driver_size_mm": 40.0,
+      "use_cases": [
+        "travel",
+        "office"
+      ]
+    },
+    {
+      "product_id": "8",
+      "title": "JBL Tune 760NC",
+      "description": "JBL Tune 760NC brings JBL's iconic Pure Bass Sound to an accessible over-ear package with serious noise-cancelling chops. The 40mm JBL drivers reproduce the punchy, energetic sound signature that has made the brand synonymous with powerful audio. Active Noise Cancellation blocks out distractions, while the Ambient Aware mode keeps you connected to your environment when needed. A staggering 35-hour battery life means the music plays all week on a single charge. The flat-fold design collapses neat",
+      "price": 99.0,
+      "brand": "JBL",
+      "type": "over-ear",
+      "wireless": true,
+      "anc": true,
+      "battery_hours": 35,
+      "waterproof_rating": null,
+      "driver_size_mm": 40.0,
+      "use_cases": [
+        "travel",
+        "office"
+      ]
+    },
+    {
+      "product_id": "13",
+      "title": "Anker Soundcore Liberty 4 NC",
+      "description": "Anker Soundcore Liberty 4 NC delivers flagship-level noise cancellation at a fraction of the premium price. The 98.5% noise reduction rating covers a wider frequency range than most competing earbuds at twice the price, creating a truly peaceful listening environment. The 11mm drivers reproduce LDAC Hi-Res audio with stunning detail and warmth, while custom-tuned bass ensures your favourite tracks hit hard. Adaptive ANC automatically adjusts based on your activities, whether you're running, comm",
+      "price": 79.0,
+      "brand": "Anker",
+      "type": "in-ear",
+      "wireless": true,
+      "anc": true,
+      "battery_hours": 9,
+      "waterproof_rating": "IPX4",
+      "driver_size_mm": 11.0,
+      "use_cases": [
+        "travel",
+        "office",
+        "sport"
+      ]
+    },
+    {
+      "product_id": "42",
+      "title": "Anker Soundcore Liberty Air 2 Pro",
+      "description": "Anker Soundcore Liberty Air 2 Pro delivers premium noise cancellation at a price that makes flagship earbuds seem wasteful. The PureNote 11mm driver with carbon nanotube composite diaphragm reproduces detailed, natural sound with a frequency response extending to 40kHz for Hi-Res certification. Three levels of HearID-personalised ANC adapts to your unique ear shape for maximum noise reduction tailored specifically to your anatomy. Transparency mode lets in natural ambient sound when you need sit",
+      "price": 79.0,
+      "brand": "Anker",
+      "type": "in-ear",
+      "wireless": true,
+      "anc": true,
+      "battery_hours": 7,
+      "waterproof_rating": "IPX4",
+      "driver_size_mm": 11.0,
+      "use_cases": [
+        "travel",
+        "office"
+      ]
+    }
+  ],
+  "evaluator_output": {
+    "diagnosis": "sufficient",
+    "blocking_constraints": [],
+    "reason": "Good selection of noise-cancelling headphones under $100 — results look solid."
+  },
+  "final_response": "For your commuting needs, the Audio-Technica Nova 3 at $99 is my top pick. With its Hybrid Digital Active Noise Cancelling and 40mm drivers, you’ll enjoy the crisp, professional sound quality that Audio-Technica is renowned for, effectively drowning out the chaos of public transport. Plus, the folding design makes it easy to stow away when you’re not jamming out or zoning in on that podcast.\n\nWant something cheaper? The Anker Soundcore Life Q35 at $79 offers impressive adaptive noise cancellation and Hi-Res audio support, making your commute feel like a first-class experience. Need something more compact? The Anker Soundcore Liberty 4 NC earbuds at $79 deliver flagship-level noise cancellation in a portable package. After longer battery life? The JBL Tune 760NC at $99 boasts a 35-hour runtime, ensuring you stay entertained all week.",
+  "iterations": 1,
+  "trace_id": "fc491eaa-2f5a-470b-b8e1-6939721d7f61"
+}

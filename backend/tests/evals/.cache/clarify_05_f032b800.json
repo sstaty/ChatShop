@@ -1,0 +1,12 @@
+{
+  "planner_output": {
+    "action": "clarify",
+    "reasoning_trace": "The user wants headphones but has not provided either a budget or a form factor/type preference. Both are missing, and that is critical because it would significantly change which products to retrieve. A focused clarification is needed before searching.",
+    "question": "What budget are you aiming for, and do you want over-ear, on-ear, or earbuds/in-ear headphones?"
+  },
+  "search_results": null,
+  "evaluator_output": null,
+  "final_response": "Great choice! What's your budget looking like, and do you prefer over-ear, on-ear, or those nifty in-ear earbuds?",
+  "iterations": 0,
+  "trace_id": "e09c3e6f-46f4-4c2e-8879-306dbc195243"
+}

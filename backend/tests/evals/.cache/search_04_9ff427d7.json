@@ -1,0 +1,23 @@
+{
+  "planner_output": {
+    "action": "search",
+    "reasoning_trace": "The user is asking for open-back headphones for mixing. This query provides: (1) form factor: over-ear headphones (open-back is a specific type of over-ear design), (2) use case: mixing/audio production (implies professional/semi-professional audio work). While no explicit budget is stated, the use case (mixing/audio production) strongly implies a professional or semi-professional context where budget expectations are reasonable. The query is sufficiently constrained to proceed with a search. No clarification needed.",
+    "intent_summary": "User is looking for open-back headphones suitable for mixing audio.",
+    "search_plan": {
+      "semantic_query": "open-back headphones high fidelity sound accurate audio reproduction",
+      "sort_by": null,
+      "filters": {
+        "max_price": null,
+        "min_price": null,
+        "extra_filters": {
+          "type": "open-back"
+        }
+      }
+    }
+  },
+  "search_results": null,
+  "evaluator_output": null,
+  "final_response": "Great choice with open-back headphones for mixing! Just to narrow it down, what’s your budget like? And if we don’t find any open-back options, would you be open to semi-open or closed-back alternatives?",
+  "iterations": 1,
+  "trace_id": "f5849b54-771b-4a9b-b838-ed48dadbe923"
+}

@@ -1,0 +1,12 @@
+{
+  "planner_output": {
+    "action": "respond",
+    "reasoning_trace": "User sent a simple greeting ('hey') with no product intent or question about personal audio. This is off-topic for a shopping assistant.",
+    "response_strategy": "off_topic"
+  },
+  "search_results": null,
+  "evaluator_output": null,
+  "final_response": "Hey there! 👋\n\nWelcome to ChatShop — your personal headphone sommelier! I'm here to help you find audio bliss, whether you're hunting for over-ear cans, true wireless earbuds, gaming headsets, or anything else you strap to your head for sound.\n\nSo... what's your audio situation? Are you:\n- Looking to upgrade from those tragic laptop speakers?\n- Searching for the perfect gym earbuds?\n- Trying to find something that won't break the bank?\n- On a quest for studio-grade monitoring?\n\nTell me what you're after, and let's find you something that'll make your ears genuinely happy. 🎧",
+  "iterations": 0,
+  "trace_id": "097b4bde-7ffc-4121-a0b9-b353b52f577e"
+}

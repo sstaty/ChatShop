@@ -1,0 +1,25 @@
+{
+  "planner_output": {
+    "action": "search",
+    "reasoning_trace": "The user has specified a clear product type (open-back headphones), a key feature (ANC/active noise cancellation), and connectivity (wireless). While no explicit budget was mentioned, the query is sufficiently constrained to proceed with a search. Open-back headphones are a specific form factor that implies over-ear design, and the combination of ANC + wireless + open-back is a well-defined product category. No clarification is needed—we have enough context to retrieve relevant products.",
+    "intent_summary": "User wants wireless open-back headphones with active noise cancellation.",
+    "search_plan": {
+      "semantic_query": "wireless active noise cancelling open-back headphones",
+      "sort_by": null,
+      "filters": {
+        "max_price": null,
+        "min_price": null,
+        "extra_filters": {
+          "wireless": true,
+          "anc": true,
+          "type": "open-back"
+        }
+      }
+    }
+  },
+  "search_results": null,
+  "evaluator_output": null,
+  "final_response": "Great question to clarify! Here's the thing — open-back and ANC are basically arch-enemies, so I want to make sure we find you what actually works best. Are you leaning more toward closed-back headphones with solid noise cancellation, or would you rather have that open, airy sound and skip the ANC altogether? And what's your budget looking like?",
+  "iterations": 1,
+  "trace_id": "4bb6abfa-a716-4a87-87f2-bab3dd3fe48b"
+}

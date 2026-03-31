@@ -1,0 +1,12 @@
+{
+  "planner_output": {
+    "action": "clarify",
+    "reasoning_trace": "The user is asking for headphones for their daughter, but critical context is missing: (1) budget/price range is completely absent, and (2) form factor/type preference is not specified (over-ear, on-ear, or earbuds). The use case 'for my daughter' doesn't strongly imply a specific form factor or budget. Without both of these, the search space is too broad and results may not match their needs. I need to ask one focused question covering budget and type preference.",
+    "question": "What's your budget, and does your daughter prefer over-ear headphones, on-ear, or earbuds? (Also, what will she mainly use them for — school, music, gaming, etc.?)"
+  },
+  "search_results": null,
+  "evaluator_output": null,
+  "final_response": "Ooh, a gift! I love it. So here's what I need to know: **what's your ballpark budget**, and **does she lean toward over-ears, on-ears, or earbuds?** Also, quick one — is this mainly for music, gaming, school, or a bit of everything?",
+  "iterations": 0,
+  "trace_id": "04e2e94e-67bf-4525-849a-985192ffdb06"
+}

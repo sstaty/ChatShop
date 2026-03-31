@@ -1,0 +1,12 @@
+{
+  "planner_output": {
+    "action": "clarify",
+    "reasoning_trace": "The user wants new earbuds, but the request is missing both critical pieces needed to decide what to retrieve: no budget and no use case/type nuance beyond a broad category. Since budget is absent and the form factor is not yet sufficiently constrained by a use case, a single focused clarification question is needed before searching.",
+    "question": "What’s your budget, and are you looking for true wireless earbuds, wired earbuds, or something else?"
+  },
+  "search_results": null,
+  "evaluator_output": null,
+  "final_response": "Got it! What's your budget, and are you leaning towards true wireless earbuds, wired ones, or a different style altogether?",
+  "iterations": 0,
+  "trace_id": "2830e62f-c990-483d-b1a0-cbd2463d33d0"
+}

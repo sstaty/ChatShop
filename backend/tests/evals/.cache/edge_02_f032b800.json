@@ -1,0 +1,25 @@
+{
+  "planner_output": {
+    "action": "search",
+    "reasoning_trace": "The user is asking for a specific personal audio product category: wireless ANC open-back headphones. This is on-topic and includes a clear form factor/type, so no clarification is needed. No evaluator_feedback is present, so the next step is to search.",
+    "intent_summary": "User is looking for wireless noise-cancelling open-back headphones.",
+    "search_plan": {
+      "semantic_query": "wireless noise-cancelling open-back headphones",
+      "sort_by": null,
+      "filters": {
+        "max_price": null,
+        "min_price": null,
+        "extra_filters": {
+          "wireless": true,
+          "anc": true,
+          "type": "open-back"
+        }
+      }
+    }
+  },
+  "search_results": null,
+  "evaluator_output": null,
+  "final_response": "I couldn't find any wireless ANC open-backs, so let’s get creative! Would you prefer to ditch the open-back design or keep the ANC and explore closed-back options instead?",
+  "iterations": 1,
+  "trace_id": "eb58164b-0989-42a7-bf09-b9c759ece485"
+}

@@ -604,6 +604,7 @@ source = { editable = "." }
 dependencies = [
     { name = "chromadb" },
     { name = "datasets" },
+    { name = "fastapi" },
     { name = "gradio" },
     { name = "ipykernel" },
     { name = "ipywidgets" },
@@ -615,6 +616,7 @@ dependencies = [
     { name = "pydantic-settings" },
     { name = "python-dotenv" },
     { name = "sentence-transformers" },
+    { name = "uvicorn", extra = ["standard"] },
 ]
 
 [package.optional-dependencies]
@@ -636,6 +638,7 @@ test = [
 requires-dist = [
     { name = "chromadb", specifier = ">=0.5" },
     { name = "datasets", specifier = ">=2.0" },
+    { name = "fastapi", specifier = ">=0.110" },
     { name = "gradio", specifier = ">=4.0" },
     { name = "ipykernel", specifier = ">=6.0" },
     { name = "ipykernel", marker = "extra == 'dev'", specifier = ">=6.0" },
@@ -654,6 +657,7 @@ requires-dist = [
     { name = "python-dotenv", specifier = ">=1.0" },
     { name = "ruff", marker = "extra == 'lint'", specifier = ">=0.4" },
     { name = "sentence-transformers", specifier = ">=3.0" },
+    { name = "uvicorn", extras = ["standard"], specifier = ">=0.29" },
 ]
 provides-extras = ["dev", "test", "lint"]
 

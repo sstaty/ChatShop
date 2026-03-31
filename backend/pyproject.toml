@@ -2,7 +2,6 @@
 name = "chatshop"
 version = "0.1.0"
 description = "Conversational shopping assistant with RAG pipeline"
-readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "openai>=1.0",
@@ -18,6 +17,8 @@ dependencies = [
     "ipykernel>=6.0",
     "ipywidgets>=8.1.8",
     "langfuse>=2.0,<3.0",
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.29",
 ]
 
 [project.optional-dependencies]

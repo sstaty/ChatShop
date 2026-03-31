@@ -1,0 +1,117 @@
+{
+  "planner_output": {
+    "action": "search",
+    "reasoning_trace": "The user specified a clear personal-audio product type: wired over-ear headphones. This is on-topic and includes the form factor/type, so clarification is not needed. No evaluator_feedback is present, so the next step is to search.",
+    "intent_summary": "User is looking for wired over-ear headphones.",
+    "search_plan": {
+      "semantic_query": "wired over-ear headphones",
+      "sort_by": null,
+      "filters": {
+        "max_price": null,
+        "min_price": null,
+        "extra_filters": {
+          "wireless": false,
+          "type": "over-ear"
+        }
+      }
+    }
+  },
+  "search_results": [
+    {
+      "product_id": "95",
+      "title": "Klipsch Opus X5",
+      "description": "Klipsch Reference Over-Ear headphones bring the American speaker brand's signature dynamic, energetic sound presentation to a premium wireless platform. The 40mm driver system is tuned for Klipsch's characteristic highly efficient, dynamic sound — powerful, fast, and exciting in a way that makes acoustic music, jazz, and classic rock come alive with natural energy. Active Noise Cancellation creates a focused listening environment for travel and office use. Premium materials including real alumin",
+      "price": 199.0,
+      "brand": "Klipsch",
+      "type": "over-ear",
+      "wireless": true,
+      "anc": true,
+      "battery_hours": 50,
+      "waterproof_rating": null,
+      "driver_size_mm": 40.0,
+      "use_cases": [
+        "travel",
+        "office"
+      ]
+    },
+    {
+      "product_id": "93",
+      "title": "Beats Studio2 Wireless",
+      "description": "Beats Studio2 Wireless headphones combine the iconic Beats aesthetic with a refined, powerful audio platform built on the Apple ecosystem. The 45mm custom driver with phase-lock mechanism minimises distortion for clean, impactful sound across all listening levels. Adaptive Noise Cancellation continuously monitors and adjusts to provide consistent noise isolation regardless of how your environment changes around you. Real-time audio calibration applies automatic compensation to maintain consisten",
+      "price": 349.0,
+      "brand": "Beats",
+      "type": "over-ear",
+      "wireless": true,
+      "anc": true,
+      "battery_hours": 40,
+      "waterproof_rating": null,
+      "driver_size_mm": 45.0,
+      "use_cases": [
+        "studio",
+        "travel",
+        "office"
+      ]
+    },
+    {
+      "product_id": "78",
+      "title": "Master & Dynamic MW65",
+      "description": "Master & Dynamic MW65 Active Noise-Cancelling Wireless Headphones set the standard for luxury headphone design with materials and construction that define the premium tier. The lightweight, premium aluminium frame is finished by hand and paired with ear cushions in genuine lambskin leather for an indulgent, plush fit. The 40mm beryllium driver — typically found only in exotic, far more expensive transducers — delivers extraordinary transparency, dynamics, and warmth. Active Noise Cancellation wi",
+      "price": 399.0,
+      "brand": "Master & Dynamic",
+      "type": "over-ear",
+      "wireless": true,
+      "anc": true,
+      "battery_hours": 24,
+      "waterproof_rating": null,
+      "driver_size_mm": 40.0,
+      "use_cases": [
+        "travel",
+        "office"
+      ]
+    },
+    {
+      "product_id": "88",
+      "title": "Skullcandy Hesh EVO",
+      "description": "Skullcandy Hesh Evo wireless headphones deliver big, powerful sound in an affordable over-ear package that prioritises bass energy and effortless style. The 44mm drivers are tuned for Skullcandy's signature aggressive, bass-forward sound profile that makes hip-hop, EDM, and rock come alive with raw energy. The plush, memory foam ear cushions provide comfortable over-ear isolation for immersive listening even without active noise cancellation. A built-in microphone handles calls and voice assista",
+      "price": 49.0,
+      "brand": "Skullcandy",
+      "type": "over-ear",
+      "wireless": true,
+      "anc": false,
+      "battery_hours": 22,
+      "waterproof_rating": null,
+      "driver_size_mm": 44.0,
+      "use_cases": [
+        "travel",
+        "gaming"
+      ]
+    },
+    {
+      "product_id": "70",
+      "title": "Master & Dynamic MW75",
+      "description": "Master & Dynamic MW75 combines sculptural industrial design with exceptional audio performance in a premium wireless headphone that makes a statement about refined taste. Hand-assembled with aircraft-grade aluminium, stainless steel, and genuine lambskin leather ear cushions, the MW75 is as much a luxury object as it is a listening instrument. The proprietary 40mm beryllium-coated driver delivers a warm, musical sound with extraordinary dynamic range and low-distortion bass response. Active Nois",
+      "price": 399.0,
+      "brand": "Master & Dynamic",
+      "type": "over-ear",
+      "wireless": true,
+      "anc": true,
+      "battery_hours": 30,
+      "waterproof_rating": null,
+      "driver_size_mm": 40.0,
+      "use_cases": [
+        "travel",
+        "office"
+      ]
+    }
+  ],
+  "evaluator_output": {
+    "diagnosis": "sufficient",
+    "blocking_constraints": [
+      "type"
+    ],
+    "reason": "All retrieved products are wireless over-ear headphones, which do not meet the user's requirement for wired options."
+  },
+  "final_response": "Ah, the sweet allure of wired over-ear headphones! Unfortunately, it seems my catalog is devoid of such gems. However, if you’re open to a wireless experience that provides a similar essence, I would crown the **Klipsch Opus X5** as the reigning champion at $199. With its 40mm drivers, it delivers that signature Klipsch energy in a wireless package that’s perfect for travel and office use. Plus, the Active Noise Cancellation ensures your listening environment is blissfully uninterrupted, making it a stellar choice for anyone wanting to immerse themselves in music.\n\nWant something more budget-friendly? The **Skullcandy Hesh EVO** at just $49 brings big, bass-heavy sound without breaking the bank. After a longer battery life? The **Klipsch Opus X5** offers an impressive 50 hours! Craving that luxurious fit? The **Master & Dynamic MW65** boasts genuine lambskin leather and exceptional audio quality for $399. Need something with a striking design? The **Master & Dynamic MW75** combines style and sound luxury for the same price, making a statement both on and off your ears!",
+  "iterations": 1,
+  "trace_id": "e4c5b883-41b4-4f4c-8895-b81e2aec654c"
+}

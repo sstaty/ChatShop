@@ -1,0 +1,12 @@
+{
+  "planner_output": {
+    "action": "clarify",
+    "reasoning_trace": "The user wants cheap bluetooth earbuds, so the form factor/type is already specified (earbuds) and a budget is partially implied by 'cheap,' but there is still not enough detail to retrieve the right products confidently. Since the request is missing a concrete budget and could benefit from a use case that affects product choice, I should ask one focused clarification question rather than search yet.",
+    "question": "What’s your budget, and are these for everyday use, workouts, or calls?"
+  },
+  "search_results": null,
+  "evaluator_output": null,
+  "final_response": "Great choice! What’s your budget looking like, and will you be using these for everyday listening, workouts, or maybe some serious call time?",
+  "iterations": 0,
+  "trace_id": "0fcafc67-7b0b-4e1d-8a5a-c29c35d8f42d"
+}

@@ -1,0 +1,113 @@
+{
+  "planner_output": {
+    "action": "search",
+    "reasoning_trace": "The user has provided a clear, specific query with both critical parameters: (1) form factor/type: ANC headphones (implies over-ear or on-ear with active noise cancellation), and (2) budget: $100–$250. No clarification is needed. This is a straightforward product search request with sufficient constraints to retrieve relevant results.",
+    "intent_summary": "User wants active noise-cancelling headphones in the $100-$250 price range.",
+    "search_plan": {
+      "semantic_query": "noise-cancelling headphones active noise cancellation",
+      "sort_by": null,
+      "filters": {
+        "max_price": null,
+        "min_price": 100,
+        "extra_filters": {
+          "anc": true
+        }
+      }
+    }
+  },
+  "search_results": [
+    {
+      "product_id": "48",
+      "title": "Bose QuietControl 30",
+      "description": "Bose QuietControl 30 wireless neckband earphones give you unprecented control over your noise cancellation environment. Unlike standard ANC earphones that offer only on/off options, the QuietControl 30 lets you dial in precisely how much noise you want blocked — choose complete isolation for deep focus or open yourself up to full awareness of your environment. Bose's proprietary acoustic design produces the warm, natural sound signature the company has refined over decades of research. The neckb",
+      "price": 279.0,
+      "brand": "Bose",
+      "type": "in-ear",
+      "wireless": true,
+      "anc": true,
+      "battery_hours": 10,
+      "waterproof_rating": null,
+      "driver_size_mm": 9.5,
+      "use_cases": [
+        "travel",
+        "office"
+      ]
+    },
+    {
+      "product_id": "2",
+      "title": "Bose QuietComfort 45",
+      "description": "Bose QuietComfort 45 sets the gold standard for comfortable noise cancellation. Lightweight construction and plush ear cushions make these the headphones you forget you're wearing, even after hours of use. The proprietary Bose acoustic platform balances bass, midrange, and treble for a natural, lifelike listening experience. Quiet Mode engages the world-class ANC that made Bose famous, while Aware Mode lets in just enough ambient sound to stay connected to your surroundings. With 24 hours of wir",
+      "price": 329.0,
+      "brand": "Bose",
+      "type": "over-ear",
+      "wireless": true,
+      "anc": true,
+      "battery_hours": 24,
+      "waterproof_rating": null,
+      "driver_size_mm": 40.0,
+      "use_cases": [
+        "travel",
+        "office"
+      ]
+    },
+    {
+      "product_id": "36",
+      "title": "Bose QC20",
+      "description": "Bose QuietComfort 20 wired earphones bring Bose's legendary noise cancellation into a compact in-ear form factor powered by an inline battery module. The Bose Active EQ and TriPort acoustic structures produce the company's signature full, rich sound regardless of volume level. Aware Mode passes through environmental sound instantly — press the button on the control module to hear your surroundings without removing the earphones. The StayHear+ Sport tips in three sizes lock securely in the outer ",
+      "price": 249.0,
+      "brand": "Bose",
+      "type": "in-ear",
+      "wireless": false,
+      "anc": true,
+      "battery_hours": 16,
+      "waterproof_rating": null,
+      "driver_size_mm": 9.0,
+      "use_cases": [
+        "travel",
+        "office"
+      ]
+    },
+    {
+      "product_id": "16",
+      "title": "Bose QuietComfort Earbuds II",
+      "description": "Bose QuietComfort Earbuds II set the world record for noise cancellation in a truly wireless earbud, using PersonalisedQuiet Calibration to customise the ANC to the unique shape of your ears. The custom-designed acoustic system produces the full, natural Bose sound with clear highs and deep, powerful bass. CustomTune technology analyses your ear canal in less than a second to optimise both the sound quality and the noise cancellation simultaneously. The StayHear Max ear tip design creates a secu",
+      "price": 279.0,
+      "brand": "Bose",
+      "type": "in-ear",
+      "wireless": true,
+      "anc": true,
+      "battery_hours": 6,
+      "waterproof_rating": "IPX4",
+      "driver_size_mm": 9.3,
+      "use_cases": [
+        "travel",
+        "office"
+      ]
+    },
+    {
+      "product_id": "15",
+      "title": "Sony WH-CH720N",
+      "description": "Sony WH-CH720N proves that world-class noise cancellation doesn't have to cost a fortune. At just 192 grams, these are among the lightest noise-cancelling headphones ever made, making them ideal for long journeys where comfort is paramount. Sony's Integrated Processor V1 delivers surprisingly effective ANC that punches well above its price point, while 360 Reality Audio creates an immersive spatial audio experience. The 30mm drivers deliver Sony's signature balanced sound with surprising bass ex",
+      "price": 149.0,
+      "brand": "Sony",
+      "type": "over-ear",
+      "wireless": true,
+      "anc": true,
+      "battery_hours": 35,
+      "waterproof_rating": null,
+      "driver_size_mm": 30.0,
+      "use_cases": [
+        "travel",
+        "office"
+      ]
+    }
+  ],
+  "evaluator_output": {
+    "diagnosis": "sufficient",
+    "blocking_constraints": [],
+    "reason": "Good selection of 5 active noise-cancelling headphones available; however, 3 of the 5 products exceed the $250 budget ceiling (Bose QC45 at $329, Bose QC30 at $279, Bose QC Earbuds II at $279), leaving 2 products within the specified range."
+  },
+  "final_response": "# Your Match\n\nThe **Bose QC20** at $249 is your sweet spot here—wired ANC earphones that pack Bose's legendary noise cancellation into a compact form factor without breaking the bank. You get 16 hours of battery life from that inline module, the signature warm Bose sound, and the security of knowing you're getting genuine active noise cancellation, not marketing hype. Perfect for travel or the office when you want to disappear into your own world.\n\nWant something truly wireless instead? The **Bose QuietComfort Earbuds II** at $279 edges just past your budget but delivers personalized ANC that calibrates to *your* ears—it's the closest thing to custom-fitted noise cancellation in earbud form. Need maximum battery life on a budget? The **Sony WH-CH720N** at $149 crushes it with 35 hours and surprisingly punchy ANC for the price, plus it's feather-light at 192 grams for travel days.",
+  "iterations": 1,
+  "trace_id": "52d3d379-43aa-4288-9eb6-48bd9ce77268"
+}

@@ -8,7 +8,7 @@ Each model configuration was evaluated against a golden dataset of 25 test cases
 
 Single-model configurations use one model for all agent roles (planner, rewriter, evaluator, synthesis). Mixed configurations use the listed planner model with gpt-4o-mini for all other roles.
 
-| Model(s) | Action Routing | Filter Extraction | Response Strategy | Judge Overall | Avg Cost/loop | Avg Latency/loop |
+| Model(s) | Action Routing | Filter Extraction | Response Strategy | LLM-as-a-Judge, Overall | Avg Cost/loop | Avg Latency/loop |
 |---|---|---|---|---|---|---|
 | gpt-4o-mini | 68.0% | 100% | 85.7% | 3.7 | 0.034 ¢ | 7.4 s |
 | gpt-4o | 84.0% | 100% | 100% | 4.1 | 0.72 ¢ | 9.4 s |
@@ -25,4 +25,4 @@ The **gpt-5.4-mini + gpt-4o-mini** combination delivers the best cost-to-quality
 
 Claude Haiku 4.5 leads on pure quality — 96% routing accuracy and 4.3 judge score — but at roughly 2x the cost and 2x the latency. That premium is hard to justify when the gpt-5.4-mini combo gets you 93% of the quality at a fraction of the price. DeepSeek is the cheapest option at 0.06¢/loop, but its 20.5s latency makes it impractical for a real-time shopping assistant. Gemini 3 Flash scores lowest across the board on quality despite decent speed and cost.
 
-For a production shopping assistant where users expect sub-10s responses and operational cost matters, the mixed gpt-5.4-mini + gpt-4o-mini setup hits the sweet spot.
+For a production shopping assistant where users expect sub-10s responses and operational cost matters, the mixed gpt-5.4-mini + gpt-4o-mini setup hits the sweet spot. However, it is expected that fine-tuned open source models would be cheaper & perform similarly, but such task was outside of scope for this project

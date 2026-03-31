@@ -1,0 +1,12 @@
+{
+  "planner_output": {
+    "action": "clarify",
+    "reasoning_trace": "The user gave a use case (gym) but did not provide a budget, and the form factor is not fully specified. For gym use, earbuds are often preferred, but headphones could also be considered depending on preference. Since both budget and type are missing, a clarifying question is needed.",
+    "question": "What’s your budget, and do you want earbuds or headphones for the gym?"
+  },
+  "search_results": null,
+  "evaluator_output": null,
+  "final_response": "Got it! What's your budget looking like, and are you leaning towards earbuds or over-ear headphones for your gym sessions?",
+  "iterations": 0,
+  "trace_id": "56f19a90-271b-4aac-a916-e6fa0cab2e3d"
+}

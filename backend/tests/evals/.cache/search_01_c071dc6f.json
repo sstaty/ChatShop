@@ -1,0 +1,113 @@
+{
+  "planner_output": {
+    "action": "search",
+    "reasoning_trace": "The user has specified: (1) form factor: wireless earbuds, (2) use case: running, (3) budget: under $80. All critical constraints are present. Running implies need for secure fit, sweat resistance, and likely compact form factor — all satisfied by the earbuds choice. No clarification needed. Ready to search the catalog.",
+    "intent_summary": "User wants wireless in-ear earbuds suitable for running with a maximum budget of $80.",
+    "search_plan": {
+      "semantic_query": "wireless earbuds for running sport exercise stable fit sweat-resistant",
+      "sort_by": null,
+      "filters": {
+        "max_price": 80,
+        "min_price": null,
+        "extra_filters": {
+          "wireless": true,
+          "type": "in-ear"
+        }
+      }
+    }
+  },
+  "search_results": [
+    {
+      "product_id": "86",
+      "title": "Jabra Endurance Peak 3",
+      "description": "Jabra Evolve Endurance Peak 3 earbuds are the most weather-resistant truly wireless sport earbuds Jabra has ever made, featuring IP57 waterproof certification that allows full submersion up to one metre for 30 minutes. Built specifically for runners, cyclists, and triathletes who refuse to let weather dictate their training schedule, the secure winged ear hook design locks the earbuds in place through any movement. The 6mm speaker is tuned for energetic, bass-enhanced sound that maintains motiva",
+      "price": 79.0,
+      "brand": "Jabra",
+      "type": "in-ear",
+      "wireless": true,
+      "anc": false,
+      "battery_hours": 9,
+      "waterproof_rating": "IPX7",
+      "driver_size_mm": 6.0,
+      "use_cases": [
+        "sport"
+      ]
+    },
+    {
+      "product_id": "61",
+      "title": "JLab JLab Epic Air Sport ANC Gen 2",
+      "description": "JLab Epic Air Sport ANC Gen 2 earbuds redefine value in the sport earbud category with an extraordinary 15-hour battery life and genuine active noise cancellation. The 10mm graphene driver delivers powerful, bass-forward sound with JLab's signature energetic tuning that pushes performance during training. Active Noise Cancellation effectively filters gym noise and traffic for focused workouts, while Be Aware mode keeps you safe during outdoor activities. The cloud foam and gel flex ear tips come",
+      "price": 79.0,
+      "brand": "JLab",
+      "type": "in-ear",
+      "wireless": true,
+      "anc": true,
+      "battery_hours": 15,
+      "waterproof_rating": "IPX5",
+      "driver_size_mm": 10.0,
+      "use_cases": [
+        "sport",
+        "travel"
+      ]
+    },
+    {
+      "product_id": "27",
+      "title": "1More True Wireless X",
+      "description": "1More True Wireless X earbuds offer an exceptional balance of sound quality, comfort, and durability at an approachable price. The 10mm composite mesh diaphragm driver reproduces a vivid sound with punchy bass and clear, detailed highs that rival earbuds at double the price. The ergonomic semi-in-ear design provides a comfortable, secure fit for active use without the discomfort of deep insertion tips. IPX5 splash resistance handles sweat-drenched workouts and outdoor adventures with ease. A 35m",
+      "price": 69.0,
+      "brand": "1More",
+      "type": "in-ear",
+      "wireless": true,
+      "anc": false,
+      "battery_hours": 7,
+      "waterproof_rating": "IPX5",
+      "driver_size_mm": 10.0,
+      "use_cases": [
+        "sport",
+        "travel"
+      ]
+    },
+    {
+      "product_id": "14",
+      "title": "JBL Tune Buds",
+      "description": "JBL Tune Buds bring JBL's legendary Pure Bass Sound into an affordable truly wireless package that doesn't compromise on the essentials. Active Noise Cancellation silences commute noise effectively, while Ambient Aware mode keeps you connected to your surroundings when safety matters. The 10mm JBL drivers produce punchy, energetic sound with the deep bass response the brand is famous for. Four ear tip sizes ensure a comfortable, sealed fit for maximum sound isolation and bass extension. Up to 8 ",
+      "price": 49.0,
+      "brand": "JBL",
+      "type": "in-ear",
+      "wireless": true,
+      "anc": true,
+      "battery_hours": 8,
+      "waterproof_rating": "IPX4",
+      "driver_size_mm": 10.0,
+      "use_cases": [
+        "travel",
+        "sport"
+      ]
+    },
+    {
+      "product_id": "55",
+      "title": "Pioneer SE-C5TW",
+      "description": "Pioneer SE-C5TW truly wireless earbuds deliver reliable performance with Pioneer's decades of audio expertise distilled into an accessible package. The 10mm carbon nanotube composite driver produces Pioneer's characteristic clean, detailed sound with natural tonal balance and satisfying bass energy. The ergonomic design with secure ear tips provides a stable, comfortable fit during physical activity. IPX5 water resistance ensures protection from heavy sweat and rain exposure during outdoor worko",
+      "price": 69.0,
+      "brand": "Pioneer",
+      "type": "in-ear",
+      "wireless": true,
+      "anc": false,
+      "battery_hours": 9,
+      "waterproof_rating": "IPX5",
+      "driver_size_mm": 10.0,
+      "use_cases": [
+        "sport",
+        "travel"
+      ]
+    }
+  ],
+  "evaluator_output": {
+    "diagnosis": "sufficient",
+    "blocking_constraints": [],
+    "reason": "Excellent selection of 5 wireless in-ear earbuds under $80 specifically suited for running, with all products featuring sport-appropriate waterproofing and secure fits."
+  },
+  "final_response": "**The Jabra Endurance Peak 3 at $79 is your winner here.** These are purpose-built for runners who take their training seriously—the winged ear hook design locks in place through any pace or terrain, and the IP57 waterproofing means rain, sweat, or a puddle won't faze them. The 6mm driver delivers that energetic, bass-forward kick that keeps motivation high on those long miles.\n\nWant something with seriously long battery life? The JLab Epic Air Sport ANC Gen 2 at $79 gives you 15 hours and actual noise cancellation for the gym portion of your training. Looking for a lighter touch? The 1More True Wireless X at $69 skips the ear hooks but nails comfort with a semi-in-ear design and that punchy 10mm driver—perfect if you prefer a less-locked-in feel. Need the absolute cheapest entry point? The JBL Tune Buds at $49 throw in ANC and solid JBL bass, though battery life dips to 8 hours.",
+  "iterations": 1,
+  "trace_id": "58fec72c-368b-4011-9b14-ac2b2c94694a"
+}

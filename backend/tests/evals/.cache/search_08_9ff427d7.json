@@ -1,0 +1,113 @@
+{
+  "planner_output": {
+    "action": "search",
+    "reasoning_trace": "The user has provided a clear, specific query with both critical parameters: (1) form factor/type: ANC headphones (implies over-ear or on-ear with active noise cancellation), and (2) budget: $100–$250. No clarification is needed. This is a straightforward product search request with sufficient constraints to retrieve relevant results.",
+    "intent_summary": "User is searching for noise-cancelling headphones within a budget of $100 to $250.",
+    "search_plan": {
+      "semantic_query": "noise-cancelling headphones",
+      "sort_by": null,
+      "filters": {
+        "max_price": 250,
+        "min_price": 100,
+        "extra_filters": {
+          "anc": true
+        }
+      }
+    }
+  },
+  "search_results": [
+    {
+      "product_id": "15",
+      "title": "Sony WH-CH720N",
+      "description": "Sony WH-CH720N proves that world-class noise cancellation doesn't have to cost a fortune. At just 192 grams, these are among the lightest noise-cancelling headphones ever made, making them ideal for long journeys where comfort is paramount. Sony's Integrated Processor V1 delivers surprisingly effective ANC that punches well above its price point, while 360 Reality Audio creates an immersive spatial audio experience. The 30mm drivers deliver Sony's signature balanced sound with surprising bass ex",
+      "price": 149.0,
+      "brand": "Sony",
+      "type": "over-ear",
+      "wireless": true,
+      "anc": true,
+      "battery_hours": 35,
+      "waterproof_rating": null,
+      "driver_size_mm": 30.0,
+      "use_cases": [
+        "travel",
+        "office"
+      ]
+    },
+    {
+      "product_id": "40",
+      "title": "Sony WI-1000XM2",
+      "description": "Sony WI-1000XM2 neckband-style earphones offer a unique combination of premium Sony noise cancellation and the secure, lightweight comfort of a around-the-neck design that suits professional environments. The industry-leading noise cancellation with Personal NC Optimiser adapts to individual ear shape and wearing conditions, producing consistent, reliable isolation on any flight or commute. Dynamic normaliser minimises sudden volume differences between tracks, and Adaptive Sound Control automati",
+      "price": 229.0,
+      "brand": "Sony",
+      "type": "in-ear",
+      "wireless": true,
+      "anc": true,
+      "battery_hours": 10,
+      "waterproof_rating": null,
+      "driver_size_mm": 9.0,
+      "use_cases": [
+        "travel",
+        "office"
+      ]
+    },
+    {
+      "product_id": "36",
+      "title": "Bose QC20",
+      "description": "Bose QuietComfort 20 wired earphones bring Bose's legendary noise cancellation into a compact in-ear form factor powered by an inline battery module. The Bose Active EQ and TriPort acoustic structures produce the company's signature full, rich sound regardless of volume level. Aware Mode passes through environmental sound instantly — press the button on the control module to hear your surroundings without removing the earphones. The StayHear+ Sport tips in three sizes lock securely in the outer ",
+      "price": 249.0,
+      "brand": "Bose",
+      "type": "in-ear",
+      "wireless": false,
+      "anc": true,
+      "battery_hours": 16,
+      "waterproof_rating": null,
+      "driver_size_mm": 9.0,
+      "use_cases": [
+        "travel",
+        "office"
+      ]
+    },
+    {
+      "product_id": "24",
+      "title": "Sennheiser PXC 550-II",
+      "description": "Sennheiser PXC 550-II delivers business-class audio performance in an elegant, compact headphone designed for the professional traveller. The flat-fold design with carrying case makes it one of the most portable over-ear noise-cancelling headphones available. NoiseGard Adaptive ANC continuously analyses your acoustic environment and adjusts cancellation depth accordingly, providing optimal isolation whether you're at 35,000 feet or in an open-plan office. Sennheiser's precision 38mm transducers ",
+      "price": 249.0,
+      "brand": "Sennheiser",
+      "type": "over-ear",
+      "wireless": true,
+      "anc": true,
+      "battery_hours": 20,
+      "waterproof_rating": null,
+      "driver_size_mm": 38.0,
+      "use_cases": [
+        "travel",
+        "office"
+      ]
+    },
+    {
+      "product_id": "39",
+      "title": "Sennheiser HD 450BT",
+      "description": "Sennheiser HD 450BT proves that German acoustic engineering excellence is accessible to every budget. The advanced Sennheiser transducers and bass optimisation circuitry produce the rich, accurate sound that defines the Sennheiser sound signature at a price that doesn't require saving up. Active Noise Cancellation effectively reduces environmental noise for more focused listening during commutes and work sessions. The soft, replaceable leatherette ear cushions seal around the ear comfortably, pr",
+      "price": 149.0,
+      "brand": "Sennheiser",
+      "type": "over-ear",
+      "wireless": true,
+      "anc": true,
+      "battery_hours": 30,
+      "waterproof_rating": null,
+      "driver_size_mm": 32.0,
+      "use_cases": [
+        "travel",
+        "office"
+      ]
+    }
+  ],
+  "evaluator_output": {
+    "diagnosis": "sufficient",
+    "blocking_constraints": [],
+    "reason": "Good selection of noise-cancelling headphones within the $100 to $250 range — results look solid."
+  },
+  "final_response": "For a delightful blend of comfort and performance, the **Sony WH-CH720N** takes the crown at just **$149**. These featherlight over-ear headphones boast impressive Active Noise Cancellation thanks to Sony's Integrated Processor V1, making them perfect for long journeys or busy office environments. Plus, with 35 hours of battery life and a beautifully balanced soundscape, you’ll be lost in your audio oasis without breaking the bank.\n\nWant something a bit fancier? The **Sony WI-1000XM2** at **$229** offers a neckband design for those who prefer a secure fit. Need a wired option? The **Bose QC20** at **$249** brings legendary noise cancellation into a compact in-ear package. Craving more portability? Check out the **Sennheiser PXC 550-II** for **$249**, which folds flat for easy travel. Want great sound on a budget? The **Sennheiser HD 450BT** at **$149** delivers that signature Sennheiser quality without a hefty price tag.",
+  "iterations": 1,
+  "trace_id": "13219a72-ef52-459f-bb71-bb01d52f7cd9"
+}

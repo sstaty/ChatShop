@@ -1,0 +1,12 @@
+{
+  "planner_output": {
+    "action": "clarify",
+    "reasoning_trace": "The user has specified a form factor (earbuds), which is helpful. However, critical context is missing: (1) budget/price range — are they looking for budget-friendly, mid-range, or premium? (2) primary use case — are these for daily commuting, workouts, office work, gaming, or general listening? These factors significantly impact which earbuds to recommend. Without at least a budget range and intended use, the search space is too broad. I should ask one focused question covering both.",
+    "question": "What's your budget range, and what will you mainly use them for (e.g., workouts, commuting, everyday listening)?"
+  },
+  "search_results": null,
+  "evaluator_output": null,
+  "final_response": "Nice! So here's the thing — to find your perfect match, I need to know: **what's your budget looking like, and how do you plan to use them?** (Gym sessions? Commute? Just vibing at your desk?)",
+  "iterations": 0,
+  "trace_id": "436c1a61-b9dd-4d19-808b-fe903f409d11"
+}

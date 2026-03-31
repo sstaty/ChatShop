@@ -1,0 +1,12 @@
+{
+  "planner_output": {
+    "action": "clarify",
+    "reasoning_trace": "The user gave a use case and a form factor (open-back headphones for mixing), but no budget. Since budget is a critical filter that can significantly change which products to retrieve, and the query is missing that key context, I should ask one focused clarification question rather than search yet.",
+    "question": "What budget are you aiming for for the open-back mixing headphones?"
+  },
+  "search_results": null,
+  "evaluator_output": null,
+  "final_response": "What's your budget range for those open-back mixing headphones you're eyeing?",
+  "iterations": 0,
+  "trace_id": "2d6505d5-f70a-469c-9e1e-0e01d0c7fcd4"
+}

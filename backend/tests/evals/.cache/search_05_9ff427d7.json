@@ -1,0 +1,112 @@
+{
+  "planner_output": {
+    "action": "search",
+    "reasoning_trace": "The user is asking for 'cheap bluetooth earbuds' — they have specified both a budget constraint (cheap/budget-friendly) and a clear form factor (bluetooth earbuds/TWS). This is sufficient context to perform a search. No clarification is needed since the use case and type are explicit. I should search for budget-friendly wireless earbuds.",
+    "intent_summary": "User is looking for budget-friendly Bluetooth earbuds.",
+    "search_plan": {
+      "semantic_query": "affordable wireless earbuds",
+      "sort_by": null,
+      "filters": {
+        "max_price": null,
+        "min_price": null,
+        "extra_filters": {
+          "wireless": true
+        }
+      }
+    }
+  },
+  "search_results": [
+    {
+      "product_id": "74",
+      "title": "Huawei FreeBuds SE 2",
+      "description": "Huawei FreeBuds SE 2 earbuds provide a complete, well-rounded truly wireless experience at an entry-level price that makes premium audio accessible for everyone. The 10mm dynamic driver with carbon crystal diaphragm produces clean, vibrant sound with natural bass extension and clear vocal reproduction. The semi-open fit design sits comfortably in the outer ear without insertion, providing a light, pressure-free wearing experience ideal for extended commutes. IPX4 water resistance handles light r",
+      "price": 59.0,
+      "brand": "Huawei",
+      "type": "in-ear",
+      "wireless": true,
+      "anc": false,
+      "battery_hours": 9,
+      "waterproof_rating": "IPX4",
+      "driver_size_mm": 10.0,
+      "use_cases": [
+        "sport",
+        "travel"
+      ]
+    },
+    {
+      "product_id": "79",
+      "title": "JBL Vibe 200TWS",
+      "description": "JBL Vibe 200TWS brings JBL's authentic Pure Bass Sound to the most affordable truly wireless earbuds in the lineup, making high-quality wireless audio available to everyone. The 8mm JBL drivers deliver the energetic, bass-forward sound characteristic of JBL at a price that makes these accessible for a first foray into truly wireless audio. The stick-style design sits naturally in the ear canal with a lightweight, comfortable fit that won't cause fatigue during daily use. Simple one-button contro",
+      "price": 29.0,
+      "brand": "JBL",
+      "type": "in-ear",
+      "wireless": true,
+      "anc": false,
+      "battery_hours": 7,
+      "waterproof_rating": null,
+      "driver_size_mm": 8.0,
+      "use_cases": [
+        "travel"
+      ]
+    },
+    {
+      "product_id": "14",
+      "title": "JBL Tune Buds",
+      "description": "JBL Tune Buds bring JBL's legendary Pure Bass Sound into an affordable truly wireless package that doesn't compromise on the essentials. Active Noise Cancellation silences commute noise effectively, while Ambient Aware mode keeps you connected to your surroundings when safety matters. The 10mm JBL drivers produce punchy, energetic sound with the deep bass response the brand is famous for. Four ear tip sizes ensure a comfortable, sealed fit for maximum sound isolation and bass extension. Up to 8 ",
+      "price": 49.0,
+      "brand": "JBL",
+      "type": "in-ear",
+      "wireless": true,
+      "anc": true,
+      "battery_hours": 8,
+      "waterproof_rating": "IPX4",
+      "driver_size_mm": 10.0,
+      "use_cases": [
+        "travel",
+        "sport"
+      ]
+    },
+    {
+      "product_id": "27",
+      "title": "1More True Wireless X",
+      "description": "1More True Wireless X earbuds offer an exceptional balance of sound quality, comfort, and durability at an approachable price. The 10mm composite mesh diaphragm driver reproduces a vivid sound with punchy bass and clear, detailed highs that rival earbuds at double the price. The ergonomic semi-in-ear design provides a comfortable, secure fit for active use without the discomfort of deep insertion tips. IPX5 splash resistance handles sweat-drenched workouts and outdoor adventures with ease. A 35m",
+      "price": 69.0,
+      "brand": "1More",
+      "type": "in-ear",
+      "wireless": true,
+      "anc": false,
+      "battery_hours": 7,
+      "waterproof_rating": "IPX5",
+      "driver_size_mm": 10.0,
+      "use_cases": [
+        "sport",
+        "travel"
+      ]
+    },
+    {
+      "product_id": "91",
+      "title": "Sony WF-C500",
+      "description": "Sony WF-C500 truly wireless earbuds deliver Sony audio quality at an entry-level price, making the brand's celebrated sound accessible for budget-conscious listeners. The 6mm Sony driver applies the same acoustic design principles as Sony's flagship earbuds in a compact, affordable form factor, reproducing clear, musical sound with satisfying bass for everyday listening. 360 Reality Audio creates a natural spatial sound image around the listener. Automatic power-off conserves battery when earbud",
+      "price": 59.0,
+      "brand": "Sony",
+      "type": "in-ear",
+      "wireless": true,
+      "anc": false,
+      "battery_hours": 10,
+      "waterproof_rating": "IPX4",
+      "driver_size_mm": 6.0,
+      "use_cases": [
+        "travel",
+        "sport"
+      ]
+    }
+  ],
+  "evaluator_output": {
+    "diagnosis": "sufficient",
+    "blocking_constraints": [],
+    "reason": "Good selection of wireless earbuds with 5 options available, all meeting the user's budget-friendly intent."
+  },
+  "final_response": "For the ultimate bang for your buck, look no further than the JBL Vibe 200TWS at just $29. These little champions deliver JBL's signature Pure Bass Sound, making them perfect for anyone dipping their toes into the world of truly wireless audio without breaking the bank. The lightweight, stick-style design is not only comfortable for long listening sessions but also keeps the music flowing all day, making these a steal for budget enthusiasts.\n\nWant something with a bit more punch? The JBL Tune Buds at $49 come with Active Noise Cancellation, so you can zone out in peace. Need better waterproofing? The 1More True Wireless X at $69 offers IPX5 splash resistance for your more adventurous days. Looking for even more battery life? The Sony WF-C500 at $59 boasts up to 10 hours of playtime, ensuring you’ll be grooving longer than ever.",
+  "iterations": 1,
+  "trace_id": "df82cd15-2b17-4aae-a0de-b305846ac2f2"
+}

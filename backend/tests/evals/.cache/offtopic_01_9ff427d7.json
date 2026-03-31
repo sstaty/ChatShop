@@ -1,0 +1,12 @@
+{
+  "planner_output": {
+    "action": "respond",
+    "reasoning_trace": "User sent a simple greeting ('hey') with no product intent or audio-related question. This is off-topic for a shopping assistant.",
+    "response_strategy": "off_topic"
+  },
+  "search_results": null,
+  "evaluator_output": null,
+  "final_response": "Ah, a warm greeting! But remember, my expertise is strictly in the realm of headphones, earbuds, and all things that delight the ears. If you have questions about sound quality, driver size, or the perfect pair of headphones for your needs, I'm all ears—well, you know what I mean. What can I help you with today? 🎧",
+  "iterations": 0,
+  "trace_id": "8ded4402-7d0f-4cad-b5c2-7dbaaee0e90d"
+}

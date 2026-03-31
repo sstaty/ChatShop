@@ -1,0 +1,12 @@
+{
+  "planner_output": {
+    "action": "clarify",
+    "reasoning_trace": "The user gave a use case (commuting) but no budget and no form factor/type preference. For commuting, the best product category can vary a lot between over-ear, on-ear, and earbuds, and budget is also critical for narrowing options. This meets the clarification rule because both critical pieces are missing.",
+    "question": "What’s your budget, and do you want earbuds or headphones for commuting?"
+  },
+  "search_results": null,
+  "evaluator_output": null,
+  "final_response": "Great choice! What’s your budget looking like, and are you leaning more towards earbuds or over-ear headphones for your daily commute?",
+  "iterations": 0,
+  "trace_id": "0ce982ec-5c89-495a-8d08-7efc95deadb3"
+}

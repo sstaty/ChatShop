@@ -1,0 +1,12 @@
+{
+  "planner_output": {
+    "action": "respond",
+    "reasoning_trace": "The user sent a greeting with no product intent and no audio-shopping question. Per instructions, greetings should be handled as off_topic without searching or clarifying.",
+    "response_strategy": "off_topic"
+  },
+  "search_results": null,
+  "evaluator_output": null,
+  "final_response": "Ah, greetings! I’m delighted you’ve dropped by, but let’s not stray too far from the sweet symphony of sound. I’m your go-to headphone sommelier, ready to help you find the perfect pair of headphones or earbuds to elevate your audio experience. So, what can I assist you with in the realm of glorious sound? 🎧✨",
+  "iterations": 0,
+  "trace_id": "e78f6a6f-8fda-49ff-bf2d-e244405bd9a2"
+}
