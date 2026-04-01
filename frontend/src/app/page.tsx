@@ -1,206 +1,123 @@
 "use client";
 
 import { FormEvent, useEffect, useRef, useState } from "react";
+import { ChatShopLayout } from "@/components/ChatShopLayout";
+import { useAgentStream } from "@/hooks/useAgentStream";
 
 type Message = {
   role: "user" | "assistant";
   content: string;
 };
 
-function TracingIndicator({ text }: { text: string }) {
-  return (
-    <div className="flex justify-start">
-      <div className="max-w-[85%] rounded-2xl px-4 py-3 bg-white border border-slate-200 text-sm text-slate-500">
-        <div className="flex items-center gap-2">
-          <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-sky-500" />
-          <span>{text || "Thinking..."}</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
-  const [isTracing, setIsTracing] = useState(false);
-  const [traceText, setTraceText] = useState("");
+  const [hasStarted, setHasStarted] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const streamingIndexRef = useRef<number | null>(null);
+  const nextMessagesRef = useRef<Message[]>([]);
+
+  const { agentState, send } = useAgentStream({
+    onChunk(token) {
+      if (streamingIndexRef.current === null) {
+        streamingIndexRef.current = nextMessagesRef.current.length;
+        setMessages([...nextMessagesRef.current, { role: "assistant", content: token }]);
+      } else {
+        const idx = streamingIndexRef.current;
+        setMessages((prev) =>
+          prev.map((msg, i) => (i === idx ? { ...msg, content: msg.content + token } : msg))
+        );
+      }
+    },
+    onDone() {
+      streamingIndexRef.current = null;
+      setIsSending(false);
+    },
+    onError(msg) {
+      streamingIndexRef.current = null;
+      setMessages((prev) => [...prev, { role: "assistant", content: `Error: ${msg}` }]);
+      setIsSending(false);
+    },
+  });
 
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages, isTracing]);
+  }, [messages, agentState]);
 
-  const handleSend = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    const trimmed = input.trim();
-    if (!trimmed || isSending) {
-      return;
-    }
-
-    const nextUserMessage: Message = { role: "user", content: trimmed };
-    const nextMessages = [...messages, nextUserMessage];
-
+  const sendMessage = async (text: string) => {
+    if (!text.trim() || isSending) return;
+    const userMessage: Message = { role: "user", content: text };
+    const nextMessages = [...messages, userMessage];
+    nextMessagesRef.current = nextMessages;
+    streamingIndexRef.current = null;
     setMessages(nextMessages);
-    setInput("");
+    setHasStarted(true);
     setIsSending(true);
-
-    try {
-      const response = await fetch("http://localhost:8000/chat/stream", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          message: trimmed,
-          history: messages,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Request failed with status ${response.status}`);
-      }
-
-      setIsTracing(true);
-      setTraceText("");
-
-      const reader = response.body!.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-      let streamingIndex: number | null = null;
-
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          buffer += decoder.decode(value, { stream: true });
-          const frames = buffer.split("\n\n");
-          buffer = frames.pop()!;
-
-          for (const frame of frames) {
-            if (!frame.startsWith("data: ")) continue;
-            let evt: { type: string; [key: string]: unknown };
-            try {
-              evt = JSON.parse(frame.slice(6));
-            } catch {
-              continue;
-            }
-
-            if (evt.type === "thinking") {
-              setTraceText(evt.message as string);
-            } else if (evt.type === "intent") {
-              setTraceText(`Searching: "${evt.semantic_query as string}"`);
-            } else if (evt.type === "clarify") {
-              setIsTracing(false);
-              setTraceText("");
-            } else if (evt.type === "products") {
-              // reserved for future card UI
-            } else if (evt.type === "response_chunk") {
-              const text = evt.text as string;
-              if (streamingIndex === null) {
-                streamingIndex = nextMessages.length;
-                setIsTracing(false);
-                setTraceText("");
-                setMessages([...nextMessages, { role: "assistant", content: text }]);
-              } else {
-                setMessages((prev) =>
-                  prev.map((msg, i) =>
-                    i === streamingIndex
-                      ? { ...msg, content: msg.content + text }
-                      : msg
-                  )
-                );
-              }
-            } else if (evt.type === "done") {
-              setIsTracing(false);
-            } else if (evt.type === "error") {
-              setIsTracing(false);
-              setTraceText("");
-              setMessages((prev) => [
-                ...prev,
-                { role: "assistant", content: `Error: ${evt.message as string}` },
-              ]);
-            }
-          }
-        }
-      } finally {
-        reader.releaseLock();
-      }
-    } catch (error) {
-      setIsTracing(false);
-      setTraceText("");
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: `Error: ${errorMessage}` },
-      ]);
-    } finally {
-      setIsSending(false);
-    }
+    await send(text, messages);
   };
 
-  return (
-    <main className="min-h-screen bg-sky-100 p-4 md:p-8">
-      <section className="mx-auto flex h-[85vh] w-full max-w-3xl flex-col overflow-hidden rounded-3xl border border-sky-200 bg-white shadow-xl">
-        <header className="border-b border-sky-100 px-6 py-4">
-          <h1 className="text-xl font-semibold text-slate-800">ChatShop Assistant</h1>
-        </header>
+  const handleSend = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const trimmed = input.trim();
+    if (!trimmed) return;
+    setInput("");
+    sendMessage(trimmed);
+  };
 
-        <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto bg-slate-50 px-4 py-4 md:px-6">
-          {messages.length === 0 && !isTracing ? (
-            <p className="text-sm text-slate-500">Start the conversation by sending a message.</p>
-          ) : (
-            messages.map((message, index) => (
-              <div
-                key={`${message.role}-${index}`}
-                className={`flex ${
-                  message.role === "user" ? "justify-end" : "justify-start"
-                }`}
-              >
-                <div
-                  className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed md:text-base ${
-                    message.role === "user"
-                      ? "bg-sky-500 text-white"
-                      : "bg-white text-slate-800 border border-slate-200"
-                  }`}
-                >
-                  {message.content}
-                </div>
-              </div>
-            ))
-          )}
-          {isTracing && <TracingIndicator text={traceText} />}
-        </div>
-
-        <form
-          onSubmit={handleSend}
-          className="border-t border-sky-100 bg-white p-3 md:p-4"
+  const inputForm = (
+    <form onSubmit={handleSend} className="p-3 shrink-0">
+      <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-2">
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder={hasStarted ? "Type your message..." : "What are you shopping for?"}
+          disabled={isSending}
+          className="w-full bg-transparent px-2 py-2 text-slate-800 outline-none placeholder:text-slate-400 text-sm"
+        />
+        <button
+          type="submit"
+          disabled={isSending}
+          className="rounded-xl bg-sky-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-70 shrink-0"
         >
-          <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-2">
-            <input
-              type="text"
-              value={input}
-              onChange={(event) => setInput(event.target.value)}
-              placeholder="Type your message..."
-              disabled={isSending}
-              className="w-full bg-transparent px-2 py-2 text-slate-800 outline-none placeholder:text-slate-400"
-            />
-            <button
-              type="submit"
-              disabled={isSending}
-              className="rounded-xl bg-sky-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-70"
-            >
-              {isSending ? (isTracing ? "Thinking..." : "Sending...") : "Send"}
-            </button>
+          {isSending ? "Thinking..." : "Send"}
+        </button>
+      </div>
+    </form>
+  );
+
+  const messageRail = (
+    <div className="h-full px-4 py-3 space-y-3 flex flex-col">
+      {messages.map((message, index) => (
+        <div
+          key={`${message.role}-${index}`}
+          className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
+        >
+          <div
+            className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+              message.role === "user"
+                ? "bg-sky-500 text-white"
+                : "bg-slate-100 text-slate-800"
+            }`}
+          >
+            {message.content}
           </div>
-        </form>
-      </section>
-    </main>
+        </div>
+      ))}
+    </div>
+  );
+
+  return (
+    <ChatShopLayout
+      agentState={agentState}
+      hasStarted={hasStarted}
+      onPillClick={sendMessage}
+      inputForm={inputForm}
+      messageRail={messageRail}
+      scrollRef={scrollRef}
+    />
   );
 }
