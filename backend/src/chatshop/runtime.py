@@ -12,6 +12,7 @@ def get_agent_loop() -> AgentLoop:
     global _agent_loop
 
     if _agent_loop is None:
+        from chatshop.agent.curator import Curator
         from chatshop.agent.evaluator import Evaluator
         from chatshop.agent.planner import Planner
         from chatshop.config import settings
@@ -27,12 +28,14 @@ def get_agent_loop() -> AgentLoop:
         rewriter_llm = llm_client_for(settings.query_rewriter_model)
         evaluator_llm = llm_client_for(settings.evaluator_model)
         synthesis_llm = llm_client_for(settings.synthesis_model)
+        curator_llm = llm_client_for(settings.curator_model)
 
         _agent_loop = AgentLoop(
             planner=Planner(planner_llm, QueryRewriter(rewriter_llm)),
             evaluator=Evaluator(evaluator_llm),
             hybrid_search=HybridSearch(Retriever()),
             llm_client=synthesis_llm,
+            curator=Curator(curator_llm),
         )
 
     return _agent_loop

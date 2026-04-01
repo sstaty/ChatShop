@@ -3,7 +3,9 @@
 from unittest.mock import MagicMock
 
 from chatshop.agent.agent_loop import AgentLoop, LoopState
+from chatshop.agent.curator import PickedProduct, ProductSelectionOutput
 from chatshop.agent.evaluator import EvaluatorOutput
+from chatshop.api.sse_events import ProductsEvent, ResponseChunkEvent
 from chatshop.agent.planner import (
     ClarifyAction,
     RespondAction,
@@ -54,6 +56,26 @@ def _unsatisfied_eval(diagnosis: str = "no_results") -> EvaluatorOutput:
     )
 
 
+def _sample_curator_output() -> ProductSelectionOutput:
+    return ProductSelectionOutput(
+        intro="Found 2 great options.",
+        picks=[
+            PickedProduct(
+                product_id="B001",
+                badge="best match",
+                rationale="Great ANC for commuting.",
+                key_attrs=["wireless", "ANC", "30h battery"],
+            ),
+            PickedProduct(
+                product_id="B002",
+                badge="best value",
+                rationale="Solid option at a lower price.",
+                key_attrs=["wireless", "under $100"],
+            ),
+        ],
+    )
+
+
 def _make_loop(planner_actions: list, products: list[Product] | None = None) -> AgentLoop:
     """Build an AgentLoop with mocked dependencies."""
     planner = MagicMock()
@@ -63,9 +85,10 @@ def _make_loop(planner_actions: list, products: list[Product] | None = None) -> 
     evaluator.evaluate.return_value = _sufficient_eval()
 
     search = MagicMock()
+    resolved = _sample_products() if products is None else products
     search.search.return_value = SearchResult(
-        products=products or _sample_products(),
-        candidate_count=5,
+        products=resolved,
+        candidate_count=len(resolved),
         applied_filters={},
     )
 
@@ -73,11 +96,15 @@ def _make_loop(planner_actions: list, products: list[Product] | None = None) -> 
     llm.complete.return_value = "Here are my recommendations."
     llm.stream.return_value = iter(["Here ", "are ", "my ", "recommendations."])
 
+    curator = MagicMock()
+    curator.curate.return_value = _sample_curator_output()
+
     return AgentLoop(
         planner=planner,
         evaluator=evaluator,
         hybrid_search=search,
         llm_client=llm,
+        curator=curator,
         max_iterations=3,
     )
 
@@ -192,11 +219,15 @@ def test_iteration_cap_stops_loop():
     llm.complete.return_value = "Forced response."
     llm.stream.return_value = iter(["Forced response."])
 
+    curator = MagicMock()
+    curator.curate.return_value = _sample_curator_output()
+
     loop = AgentLoop(
         planner=planner,
         evaluator=evaluator,
         hybrid_search=search,
         llm_client=llm,
+        curator=curator,
         max_iterations=2,
     )
     result = loop.run("headphones", history=[])
@@ -223,8 +254,12 @@ def test_no_results_strategy_when_no_products():
     llm.complete.return_value = "No products found."
     llm.stream.return_value = iter(["No products found."])
 
+    curator = MagicMock()
+    curator.curate.return_value = ProductSelectionOutput(intro="No good options.", picks=[])
+
     loop = AgentLoop(
-        planner=planner, evaluator=evaluator, hybrid_search=search, llm_client=llm, max_iterations=1
+        planner=planner, evaluator=evaluator, hybrid_search=search, llm_client=llm,
+        curator=curator, max_iterations=1,
     )
     loop.run("headphones", history=[])
 
@@ -256,8 +291,12 @@ def test_narrow_results_strategy_at_cap():
     llm.complete.return_value = "Limited options."
     llm.stream.return_value = iter(["Limited options."])
 
+    curator = MagicMock()
+    curator.curate.return_value = _sample_curator_output()
+
     loop = AgentLoop(
-        planner=planner, evaluator=evaluator, hybrid_search=search, llm_client=llm, max_iterations=1
+        planner=planner, evaluator=evaluator, hybrid_search=search, llm_client=llm,
+        curator=curator, max_iterations=1,
     )
     loop.run("headphones", history=[])
 
@@ -286,3 +325,45 @@ def test_stream_clarify_yields_question():
     call_messages = loop._conversationist._llm.stream.call_args[0][0]
     last_msg = call_messages[-1]["content"]
     assert "What is your use case?" in last_msg
+
+
+# ── Curator integration ───────────────────────────────────────────────────────
+
+
+def test_curator_called_after_search_with_products():
+    """Curator must be called once after search returns products."""
+    loop = _make_loop([_search_action(), _respond_action()])
+    loop.run("wireless headphones", history=[])
+    loop._curator.curate.assert_called_once()
+
+
+def test_curator_not_called_when_no_products():
+    """Curator must be skipped when search returns no products."""
+    loop = _make_loop([_search_action(), _respond_action()], products=[])
+    loop.run("wireless headphones", history=[])
+    loop._curator.curate.assert_not_called()
+
+
+def test_stream_emits_products_event_after_search():
+    """stream_with_trace must emit a ProductsEvent after curator runs."""
+    loop = _make_loop([_search_action(), _respond_action()])
+    events = list(loop.stream_with_trace("wireless headphones", history=[]))
+    products_events = [e for e in events if isinstance(e, ProductsEvent)]
+    assert len(products_events) == 1
+    assert products_events[0].intro == "Found 2 great options."
+    assert len(products_events[0].items) == 2
+
+
+def test_stream_no_products_event_when_empty_results():
+    """stream_with_trace must not emit ProductsEvent when search finds nothing."""
+    loop = _make_loop([_search_action(), _respond_action()], products=[])
+    events = list(loop.stream_with_trace("wireless headphones", history=[]))
+    assert not any(isinstance(e, ProductsEvent) for e in events)
+
+
+def test_stream_response_chunks_contain_tokens():
+    """stream_with_trace must emit ResponseChunkEvent for each LLM token."""
+    loop = _make_loop([_search_action(), _respond_action()])
+    events = list(loop.stream_with_trace("wireless headphones", history=[]))
+    chunks = [e for e in events if isinstance(e, ResponseChunkEvent)]
+    assert "".join(c.text for c in chunks) == "Here are my recommendations."

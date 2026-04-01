@@ -1,4 +1,3 @@
-import json
 import logging
 from typing import Iterator
 
@@ -7,7 +6,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from chatshop.agent.agent_loop import AgentResult, TraceEvent
+from chatshop.agent.agent_loop import AgentResult
+from chatshop.api.sse_events import ErrorEvent
 from chatshop.runtime import get_agent_loop
 
 logger = logging.getLogger(__name__)
@@ -32,16 +32,13 @@ class ChatResponse(BaseModel):
     reasoning_trace: str
 
 
-def _stream_ndjson(message: str, history: list) -> Iterator[str]:
+def _stream_sse(message: str, history: list) -> Iterator[str]:
     try:
         for event in get_agent_loop().stream_with_trace(message, history):
-            if isinstance(event, TraceEvent):
-                yield json.dumps({"type": "trace", "text": event.text}) + "\n"
-            else:
-                yield json.dumps({"type": "token", "text": event}) + "\n"
+            yield f"data: {event.model_dump_json()}\n\n"
     except Exception:
         logger.exception("Agent stream failed")
-        yield json.dumps({"type": "error", "text": "Stream failed"}) + "\n"
+        yield f"data: {ErrorEvent(message='Stream failed').model_dump_json()}\n\n"
 
 
 def _reasoning_trace_for(result: AgentResult) -> str:
@@ -57,8 +54,8 @@ def _reasoning_trace_for(result: AgentResult) -> str:
 @app.post("/chat/stream")
 def chat_stream(req: ChatRequest):
     return StreamingResponse(
-        _stream_ndjson(req.message, req.history),
-        media_type="application/x-ndjson",
+        _stream_sse(req.message, req.history),
+        media_type="text/event-stream",
     )
 
 

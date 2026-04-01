@@ -32,6 +32,15 @@ from typing import TYPE_CHECKING, Iterator, Union
 
 from chatshop.agent.conversationist import Conversationist
 from chatshop.agent.planner import SearchFilters, strategy_for_result_count
+from chatshop.api.sse_events import (
+    ClarifyEvent,
+    DoneEvent,
+    IntentEvent,
+    ProductsEvent,
+    ResponseChunkEvent,
+    SSEEvent,
+    ThinkingEvent,
+)
 from chatshop.data.models import Product
 from chatshop.infra.observability import (
     create_span,
@@ -42,6 +51,7 @@ from chatshop.infra.observability import (
 )
 
 if TYPE_CHECKING:
+    from chatshop.agent.curator import Curator
     from chatshop.agent.evaluator import Evaluator, EvaluatorOutput
     from chatshop.agent.planner import Planner, PlannerOutput, SearchPlan
     from chatshop.rag.hybrid_search import HybridSearch, SearchResult
@@ -51,6 +61,27 @@ if TYPE_CHECKING:
 # ---------------------------------------------------------------------------
 # Reasoning trace
 # ---------------------------------------------------------------------------
+
+
+THINKING_MESSAGES: dict[str, dict[str, str]] = {
+    "analyzing":  {"message": "Decoding your request...",      "detail": "figuring out what you want"},
+    "searching":  {"message": "Scanning the catalogue...",     "detail": "running hybrid search"},
+    "evaluating": {"message": "Checking quality...",           "detail": "evaluator quality gate"},
+    "curating":   {"message": "Picking your best options...", "detail": "curator selecting top products"},
+    "responding": {"message": "Crafting your answer...",       "detail": "almost there"},
+    "clarifying": {"message": "Need a bit more info...",       "detail": ""},
+}
+
+
+def _filters_dict(filters: SearchFilters) -> dict:
+    """Convert SearchFilters to a plain dict for IntentEvent."""
+    d: dict = {}
+    if filters.max_price is not None:
+        d["max_price"] = filters.max_price
+    if filters.min_price is not None:
+        d["min_price"] = filters.min_price
+    d.update(filters.extra_filters)
+    return d
 
 
 @dataclass
@@ -81,13 +112,10 @@ class AgentResult:
     """Langfuse trace ID for this turn (informational)."""
 
 
+# Deprecated: use typed SSEEvent types from chatshop.api.sse_events instead.
 @dataclass
 class TraceEvent:
-    """A human-readable reasoning trace line emitted during the agent loop.
-
-    Yielded by :meth:`AgentLoop.stream_with_trace` interleaved with response
-    tokens so the UI can update a reasoning panel in real time.
-    """
+    """Deprecated. Use ThinkingEvent / IntentEvent etc. from chatshop.api.sse_events."""
 
     text: str
 
@@ -159,12 +187,14 @@ class AgentLoop:
         evaluator: Evaluator,
         hybrid_search: HybridSearch,
         llm_client: LLMClient,
+        curator: Curator,
         max_iterations: int = 3,
     ) -> None:
         self._planner = planner
         self._evaluator = evaluator
         self._search = hybrid_search
         self._conversationist = Conversationist(llm_client)
+        self._curator = curator
         self._max_iterations = max_iterations
 
     # ------------------------------------------------------------------
@@ -274,25 +304,21 @@ class AgentLoop:
     def stream(self, message: str, history: list[dict]) -> Iterator[str]:
         """Run the agent loop and yield the final response token by token."""
         for event in self.stream_with_trace(message, history):
-            if not isinstance(event, TraceEvent):
-                yield event
+            if isinstance(event, ResponseChunkEvent):
+                yield event.text
 
     def stream_with_trace(
         self, message: str, history: list[dict]
-    ) -> Iterator[Union[TraceEvent, str]]:
-        """Run the agent loop yielding :class:`TraceEvent` during planning/
-        retrieval and plain ``str`` tokens during final response synthesis.
+    ) -> Iterator[SSEEvent]:
+        """Run the agent loop yielding typed SSEEvent instances.
 
-        This is the canonical loop implementation and the entry point for UIs
-        that want to show a live reasoning panel alongside the streamed response.
+        Yields ThinkingEvent / IntentEvent / ProductsEvent during planning and
+        retrieval, then ResponseChunkEvent tokens during synthesis, and a
+        DoneEvent at the end.
 
-        Uses observability.py (langfuse) to track LLM calls, context, usage
-
-        Yields:
-            :class:`TraceEvent` instances for each reasoning step, then plain
-            ``str`` chunks for the final LLM response.
+        Uses observability.py (langfuse) to track LLM calls, context, usage.
         """
-        yield TraceEvent("Analyzing request...")
+        yield ThinkingEvent(**THINKING_MESSAGES["analyzing"])
 
         trace = create_trace("agent_turn", metadata={"user_message": message})
         state = LoopState(history=history + [{"role": "user", "content": message}])
@@ -316,17 +342,18 @@ class AgentLoop:
             })
 
             if plan.action == "clarify":
-                yield TraceEvent("Clarifying...")
+                yield ClarifyEvent()
                 conv_span = create_span(trace, "conversationist", input={"mode": "clarify"})
                 conv_meta = llm_metadata(conv_span, "conversationist-clarify")
                 for token in self._conversationist.clarify(plan.question, state.history, stream=True, metadata=conv_meta):  # type: ignore[misc]
-                    yield token
+                    yield ResponseChunkEvent(text=token)
                 end_span(conv_span, output={"mode": "clarify"})
                 flush_observability()
+                yield DoneEvent()
                 return
 
             if plan.action == "respond":
-                yield TraceEvent("Generating response...")
+                yield ThinkingEvent(**THINKING_MESSAGES["responding"])
                 conv_span = create_span(trace, "conversationist", input={
                     "mode": "synthesize",
                     "strategy": plan.response_strategy,
@@ -334,18 +361,19 @@ class AgentLoop:
                 })
                 conv_meta = llm_metadata(conv_span, "conversationist-synthesize")
                 for token in self._conversationist.synthesize(plan.response_strategy, state.history, state.last_results, stream=True, metadata=conv_meta):  # type: ignore[misc]
-                    yield token
+                    yield ResponseChunkEvent(text=token)
                 end_span(conv_span, output={"strategy": plan.response_strategy})
                 flush_observability()
+                yield DoneEvent()
                 return
 
             # action == "search"
             sp = plan.search_plan
 
-            yield TraceEvent(
-                f"Intent: {plan.intent_summary}\n"
-                f'Semantic: "{sp.semantic_query}"\n'
-                f"Filters: {_format_filters(sp.filters)}"
+            yield IntentEvent(
+                summary=plan.intent_summary,
+                semantic_query=sp.semantic_query,
+                filters=_filters_dict(sp.filters),
             )
 
             # --- Hybrid Search ---
@@ -382,10 +410,27 @@ class AgentLoop:
                 "reason": evaluation.reason,
             })
 
-            yield TraceEvent(
-                f"Retrieved {result.candidate_count} candidates\n"
-                f"Evaluator: {evaluation.label}"
+            yield ThinkingEvent(
+                message=THINKING_MESSAGES["evaluating"]["message"],
+                detail=f"{result.candidate_count} candidates found",
             )
+
+            # --- Curator ---
+            if result.products:
+                yield ThinkingEvent(**THINKING_MESSAGES["curating"])
+                curator_span = create_span(trace, "curator", input={"product_count": len(result.products)})
+                curator_meta = llm_metadata(curator_span, "curator")
+                curator_output = self._curator.curate(
+                    products=result.products,
+                    intent_summary=plan.intent_summary,
+                    history=state.history,
+                    metadata=curator_meta,
+                )
+                end_span(curator_span, output={"picks": len(curator_output.picks)})
+                yield ProductsEvent(
+                    intro=curator_output.intro,
+                    items=[p.model_dump() for p in curator_output.picks],
+                )
 
             state.last_results = result.products
             state.evaluator_feedback = _format_feedback(evaluation, sp, result.candidate_count)
@@ -393,7 +438,7 @@ class AgentLoop:
 
         # Iteration cap reached — respond with whatever we have
         strategy = strategy_for_result_count(len(state.last_results))
-        yield TraceEvent("Generating response...")
+        yield ThinkingEvent(**THINKING_MESSAGES["responding"])
         conv_span = create_span(trace, "conversationist", input={
             "mode": "synthesize",
             "strategy": strategy,
@@ -401,6 +446,7 @@ class AgentLoop:
         })
         conv_meta = llm_metadata(conv_span, "conversationist-synthesize")
         for token in self._conversationist.synthesize(strategy, state.history, state.last_results, stream=True, metadata=conv_meta):  # type: ignore[misc]
-            yield token
+            yield ResponseChunkEvent(text=token)
         end_span(conv_span, output={"strategy": strategy})
         flush_observability()
+        yield DoneEvent()

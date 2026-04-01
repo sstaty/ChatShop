@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     query_rewriter_model: str = "gpt-4o-mini"   # structured JSON extraction
     evaluator_model: str = "gpt-4o-mini"         # binary result classification
     synthesis_model: str = "gpt-4o-mini"         # final response generation
+    curator_model: str = "gpt-4o-mini"           # post-search product selection (nano model)
 
     # Embeddings
     # backend: "local" (sentence-transformers, no API key) or "openai" (text-embedding-3-small)

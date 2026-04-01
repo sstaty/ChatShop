@@ -79,41 +79,51 @@ export default function Home() {
           if (done) break;
 
           buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop()!;
+          const frames = buffer.split("\n\n");
+          buffer = frames.pop()!;
 
-          for (const line of lines) {
-            if (!line.trim()) continue;
-            let evt: { type: string; text: string };
+          for (const frame of frames) {
+            if (!frame.startsWith("data: ")) continue;
+            let evt: { type: string; [key: string]: unknown };
             try {
-              evt = JSON.parse(line);
+              evt = JSON.parse(frame.slice(6));
             } catch {
               continue;
             }
 
-            if (evt.type === "trace") {
-              setTraceText(evt.text);
-            } else if (evt.type === "token") {
+            if (evt.type === "thinking") {
+              setTraceText(evt.message as string);
+            } else if (evt.type === "intent") {
+              setTraceText(`Searching: "${evt.semantic_query as string}"`);
+            } else if (evt.type === "clarify") {
+              setIsTracing(false);
+              setTraceText("");
+            } else if (evt.type === "products") {
+              // reserved for future card UI
+            } else if (evt.type === "response_chunk") {
+              const text = evt.text as string;
               if (streamingIndex === null) {
                 streamingIndex = nextMessages.length;
                 setIsTracing(false);
                 setTraceText("");
-                setMessages([...nextMessages, { role: "assistant", content: evt.text }]);
+                setMessages([...nextMessages, { role: "assistant", content: text }]);
               } else {
                 setMessages((prev) =>
                   prev.map((msg, i) =>
                     i === streamingIndex
-                      ? { ...msg, content: msg.content + evt.text }
+                      ? { ...msg, content: msg.content + text }
                       : msg
                   )
                 );
               }
+            } else if (evt.type === "done") {
+              setIsTracing(false);
             } else if (evt.type === "error") {
               setIsTracing(false);
               setTraceText("");
               setMessages((prev) => [
                 ...prev,
-                { role: "assistant", content: `Error: ${evt.text}` },
+                { role: "assistant", content: `Error: ${evt.message as string}` },
               ]);
             }
           }
