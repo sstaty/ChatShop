@@ -1,16 +1,38 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 
 type Message = {
   role: "user" | "assistant";
   content: string;
 };
 
+function TracingIndicator({ text }: { text: string }) {
+  return (
+    <div className="flex justify-start">
+      <div className="max-w-[85%] rounded-2xl px-4 py-3 bg-white border border-slate-200 text-sm text-slate-500">
+        <div className="flex items-center gap-2">
+          <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-sky-500" />
+          <span>{text || "Thinking..."}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [isTracing, setIsTracing] = useState(false);
+  const [traceText, setTraceText] = useState("");
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages, isTracing]);
 
   const handleSend = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -28,7 +50,7 @@ export default function Home() {
     setIsSending(true);
 
     try {
-      const response = await fetch("http://localhost:8000/chat", {
+      const response = await fetch("http://localhost:8000/chat/stream", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -43,13 +65,65 @@ export default function Home() {
         throw new Error(`Request failed with status ${response.status}`);
       }
 
-      const data: { response: string } = await response.json();
+      setIsTracing(true);
+      setTraceText("");
 
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: data.response },
-      ]);
+      const reader = response.body!.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let streamingIndex: number | null = null;
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop()!;
+
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            let evt: { type: string; text: string };
+            try {
+              evt = JSON.parse(line);
+            } catch {
+              continue;
+            }
+
+            if (evt.type === "trace") {
+              setTraceText(evt.text);
+            } else if (evt.type === "token") {
+              if (streamingIndex === null) {
+                streamingIndex = nextMessages.length;
+                setIsTracing(false);
+                setTraceText("");
+                setMessages([...nextMessages, { role: "assistant", content: evt.text }]);
+              } else {
+                setMessages((prev) =>
+                  prev.map((msg, i) =>
+                    i === streamingIndex
+                      ? { ...msg, content: msg.content + evt.text }
+                      : msg
+                  )
+                );
+              }
+            } else if (evt.type === "error") {
+              setIsTracing(false);
+              setTraceText("");
+              setMessages((prev) => [
+                ...prev,
+                { role: "assistant", content: `Error: ${evt.text}` },
+              ]);
+            }
+          }
+        }
+      } finally {
+        reader.releaseLock();
+      }
     } catch (error) {
+      setIsTracing(false);
+      setTraceText("");
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
       setMessages((prev) => [
@@ -68,8 +142,8 @@ export default function Home() {
           <h1 className="text-xl font-semibold text-slate-800">ChatShop Assistant</h1>
         </header>
 
-        <div className="flex-1 space-y-3 overflow-y-auto bg-slate-50 px-4 py-4 md:px-6">
-          {messages.length === 0 ? (
+        <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto bg-slate-50 px-4 py-4 md:px-6">
+          {messages.length === 0 && !isTracing ? (
             <p className="text-sm text-slate-500">Start the conversation by sending a message.</p>
           ) : (
             messages.map((message, index) => (
@@ -91,6 +165,7 @@ export default function Home() {
               </div>
             ))
           )}
+          {isTracing && <TracingIndicator text={traceText} />}
         </div>
 
         <form
@@ -111,7 +186,7 @@ export default function Home() {
               disabled={isSending}
               className="rounded-xl bg-sky-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-70"
             >
-              {isSending ? "Sending..." : "Send"}
+              {isSending ? (isTracing ? "Thinking..." : "Sending...") : "Send"}
             </button>
           </div>
         </form>
