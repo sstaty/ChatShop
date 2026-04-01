@@ -291,3 +291,4 @@ Additional frontend polish completed:
 - corrected the idle chat container height to match the redesigned input row so the landing-state field no longer clips inside the panel
 - removed the separate post-stream response layout; the response now renders in one persistent container from first token onward, with the input row simply appearing beneath it on completion
 - tightened the landing-state vertical spacing so the hero copy and idle chatbox sit closer together again
+- cleaned up repeated frontend utility strings by extracting reusable visual classes for badges, cards, chips, suggestion pills, input controls, chat shell, and response copy into `globals.css`

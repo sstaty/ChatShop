@@ -80,14 +80,14 @@ export function ChatZone({
           <div className="flex h-full flex-col justify-end">
             <div className="flex flex-1 items-center justify-center px-6 py-5 md:px-8 md:py-6">
               <div className="mx-auto flex w-full max-w-2xl items-center justify-center text-left">
-                <p className="whitespace-pre-wrap text-[17px] leading-8 font-medium tracking-[-0.015em] text-(--color-text-primary) md:text-[1.15rem] md:leading-9">
+                <p className="whitespace-pre-wrap text-[17px] leading-8 font-medium tracking-[-0.015em] text-[var(--color-text-primary)] md:text-[1.15rem] md:leading-9">
                   {responseText}
                 </p>
               </div>
             </div>
             <div
               className={`transition-all duration-200 ease-in-out ${
-                reserveInputSpace ? "border-t border-(--color-border-tertiary)" : ""
+                reserveInputSpace ? "border-t border-[var(--color-border-tertiary)]" : ""
               } ${showInput ? "bg-[rgba(255,255,255,0.55)] opacity-100" : "bg-transparent opacity-0"}`}
             >
               <div className={showInput ? "visible" : "invisible"}>{inputForm}</div>
