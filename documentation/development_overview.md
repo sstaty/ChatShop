@@ -60,4 +60,6 @@ Proper web Frontend (react.js), backend (fastAPI), vercel + docker for deploymen
 - It supports input + send button + message list, and posts to `http://localhost:8000/chat`.
 - Backend response is appended to the same message list.
 - Added basic modern chatbot visuals: light blue page background, centered rounded chat container, message bubbles, and styled input/send controls.
+- FastAPI `/chat` is now wired to the real `AgentLoop` using the non-streaming `run_with_result()` path.
+- The Gradio streaming path is preserved and now shares the same runtime loop construction helper as the FastAPI app.
 
