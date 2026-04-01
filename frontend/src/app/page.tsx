@@ -1,8 +1,9 @@
 "use client";
 
-import { FormEvent, useRef, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { ChatShopLayout } from "@/components/ChatShopLayout";
 import { useAgentStream } from "@/hooks/useAgentStream";
+import { ProductItem } from "@/lib/agentState";
 
 type Message = {
   role: "user" | "assistant";
@@ -17,8 +18,20 @@ export default function Home() {
   const [streamingText, setStreamingText] = useState("");
   const [latestAssistantMessage, setLatestAssistantMessage] = useState<string | null>(null);
   const [hasStarted, setHasStarted] = useState(false);
+  const [visibleResults, setVisibleResults] = useState<ProductItem[]>([]);
+  const [isResultsDismissing, setIsResultsDismissing] = useState(false);
+  const [resultsRenderVersion, setResultsRenderVersion] = useState(0);
   const streamingTextRef = useRef("");
   const isStreamingRef = useRef(false);
+  const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (dismissTimerRef.current) {
+        clearTimeout(dismissTimerRef.current);
+      }
+    };
+  }, []);
 
   const { agentState, send } = useAgentStream({
     onChunk(token) {
@@ -53,6 +66,16 @@ export default function Home() {
       setLatestAssistantMessage(errorMessage);
       setMessages((prev) => [...prev, { role: "assistant", content: errorMessage }]);
     },
+    onProducts(items) {
+      if (dismissTimerRef.current) {
+        clearTimeout(dismissTimerRef.current);
+        dismissTimerRef.current = null;
+      }
+
+      setIsResultsDismissing(false);
+      setVisibleResults(items);
+      setResultsRenderVersion((prev) => prev + 1);
+    },
   });
 
   const sendMessage = async (text: string) => {
@@ -66,6 +89,20 @@ export default function Home() {
     setIsAwaitingResponse(true);
     setIsStreaming(false);
     setStreamingText("");
+
+    if (visibleResults.length > 0) {
+      if (dismissTimerRef.current) {
+        clearTimeout(dismissTimerRef.current);
+      }
+
+      setIsResultsDismissing(true);
+      dismissTimerRef.current = setTimeout(() => {
+        setVisibleResults([]);
+        setIsResultsDismissing(false);
+        dismissTimerRef.current = null;
+      }, 150);
+    }
+
     streamingTextRef.current = "";
     isStreamingRef.current = false;
     await send(text, messages);
@@ -117,6 +154,9 @@ export default function Home() {
       isStreaming={isStreaming}
       streamingText={streamingText}
       latestAssistantMessage={latestAssistantMessage}
+      visibleResults={visibleResults}
+      isResultsDismissing={isResultsDismissing}
+      resultsRenderVersion={resultsRenderVersion}
       onPillClick={sendMessage}
       inputForm={inputForm}
     />

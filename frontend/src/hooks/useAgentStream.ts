@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { AgentState } from "@/lib/agentState";
+import { AgentState, ProductItem } from "@/lib/agentState";
 
 type Message = {
   role: "user" | "assistant";
@@ -12,9 +12,10 @@ interface UseAgentStreamOptions {
   onChunk: (token: string) => void;
   onDone: () => void;
   onError: (msg: string) => void;
+  onProducts: (items: ProductItem[]) => void;
 }
 
-export function useAgentStream({ onChunk, onDone, onError }: UseAgentStreamOptions) {
+export function useAgentStream({ onChunk, onDone, onError, onProducts }: UseAgentStreamOptions) {
   const [agentState, setAgentState] = useState<AgentState>({ status: "idle" });
 
   const send = async (message: string, history: Message[]) => {
@@ -58,6 +59,7 @@ export function useAgentStream({ onChunk, onDone, onError }: UseAgentStreamOptio
                 });
                 break;
               case "products":
+                onProducts(evt.items ?? []);
                 setAgentState({ status: "results", items: evt.items ?? [] });
                 break;
               case "clarify":

@@ -1,7 +1,8 @@
 "use client";
 
 import { ChatZone } from "@/components/ChatZone";
-import { AgentState, ProductItem } from "@/lib/agentState";
+import { ProductCard } from "./ProductCard";
+import { AgentState, ProductItem, ProductVisualType } from "@/lib/agentState";
 
 const PILLS = ["running headphones", "for gym", "noise cancelling"];
 const TOP_ZONE_VISIBLE = new Set(["intent", "results"]);
@@ -69,44 +70,84 @@ function IntentPanel({
   );
 }
 
-// ---------------------------------------------------------------------------
-// ProductsPlaceholder
-// ---------------------------------------------------------------------------
+function inferProductType(item: ProductItem): ProductVisualType {
+  if (item.type === "over-ear" || item.type === "in-ear" || item.type === "on-ear") {
+    return item.type;
+  }
 
-function ProductsPlaceholder({ items }: { items: ProductItem[] }) {
+  const haystack = [item.product_id, ...item.key_attrs]
+    .join(" ")
+    .toLowerCase();
+
+  if (haystack.includes("in-ear") || haystack.includes("in ear") || haystack.includes("earbud")) {
+    return "in-ear";
+  }
+
+  if (haystack.includes("on-ear") || haystack.includes("on ear")) {
+    return "on-ear";
+  }
+
+  return "over-ear";
+}
+
+function ProductsPanel({
+  items,
+  isDismissing,
+  renderVersion,
+}: {
+  items: ProductItem[];
+  isDismissing: boolean;
+  renderVersion: number;
+}) {
   return (
-    <div className="flex h-full flex-col gap-3 overflow-y-auto p-4 md:flex-row md:p-5">
-      {items.map((item) => (
+    <div
+      className={`flex h-full items-stretch justify-center gap-4 overflow-x-auto px-4 py-4 transition-opacity duration-150 md:px-5 ${
+        isDismissing ? "opacity-0" : "opacity-100"
+      }`}
+    >
+      {items.map((item, index) => (
         <div
-          key={item.product_id}
-          className="flex-1 rounded-[1.5rem] border border-[var(--color-border-secondary)] bg-[rgba(255,253,248,0.94)] p-4 text-xs shadow-[var(--shadow-soft)] backdrop-blur-sm"
+          key={`${item.product_id}-${renderVersion}`}
+          className="product-card-enter flex w-full max-w-[17rem] shrink-0 justify-center"
+          style={{ animationDelay: `${index * 80}ms` }}
         >
-          <div className="truncate text-sm font-semibold text-[var(--color-text-primary)]">{item.product_id}</div>
-          <div className="mt-1 text-[12px] font-medium uppercase tracking-[0.12em] text-[var(--color-accent)]">{item.badge}</div>
-          <div className="mt-2 line-clamp-3 text-[13px] leading-6 text-[var(--color-text-secondary)]">{item.rationale}</div>
-          {item.key_attrs.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              {item.key_attrs.map((attr) => (
-                <span
-                  key={attr}
-                  className="rounded-full border border-[var(--color-border-secondary)] bg-[var(--color-surface)] px-2.5 py-1 text-[11px] text-[var(--color-text-secondary)]"
-                >
-                  {attr}
-                </span>
-              ))}
-            </div>
-          )}
+          <ProductCard
+            name={item.product_id}
+            type={inferProductType(item)}
+            badge={item.badge}
+            rationale={item.rationale}
+            keyAttrs={item.key_attrs}
+          />
         </div>
       ))}
     </div>
   );
 }
 
-function TopZoneContent({ agentState }: { agentState: AgentState }) {
+function TopZoneContent({
+  agentState,
+  visibleResults,
+  isResultsDismissing,
+  resultsRenderVersion,
+}: {
+  agentState: AgentState;
+  visibleResults: ProductItem[];
+  isResultsDismissing: boolean;
+  resultsRenderVersion: number;
+}) {
+  if (visibleResults.length > 0) {
+    return (
+      <ProductsPanel
+        items={visibleResults}
+        isDismissing={isResultsDismissing}
+        renderVersion={resultsRenderVersion}
+      />
+    );
+  }
+
   if (agentState.status === "intent")
     return <IntentPanel summary={agentState.summary} semanticQuery={agentState.semanticQuery} filters={agentState.filters} />;
-  if (agentState.status === "results")
-    return <ProductsPlaceholder items={agentState.items} />;
+
   return null;
 }
 
@@ -121,6 +162,9 @@ interface ChatShopLayoutProps {
   isStreaming: boolean;
   streamingText: string;
   latestAssistantMessage: string | null;
+  visibleResults: ProductItem[];
+  isResultsDismissing: boolean;
+  resultsRenderVersion: number;
   onPillClick: (text: string) => void;
   inputForm: React.ReactNode;
 }
@@ -132,10 +176,14 @@ export function ChatShopLayout({
   isStreaming,
   streamingText,
   latestAssistantMessage,
+  visibleResults,
+  isResultsDismissing,
+  resultsRenderVersion,
   onPillClick,
   inputForm,
 }: ChatShopLayoutProps) {
-  const topVisible = TOP_ZONE_VISIBLE.has(agentState.status) && hasStarted;
+  const showingResults = visibleResults.length > 0;
+  const topVisible = hasStarted && (showingResults || TOP_ZONE_VISIBLE.has(agentState.status));
 
   return (
     <main className="relative h-screen overflow-hidden bg-[var(--color-page)] text-[var(--color-text-primary)]">
@@ -202,7 +250,12 @@ export function ChatShopLayout({
         }}
       >
         <div className="h-full w-full max-w-5xl">
-          <TopZoneContent agentState={agentState} />
+          <TopZoneContent
+            agentState={agentState}
+            visibleResults={visibleResults}
+            isResultsDismissing={isResultsDismissing}
+            resultsRenderVersion={resultsRenderVersion}
+          />
         </div>
       </div>
 

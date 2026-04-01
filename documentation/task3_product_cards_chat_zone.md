@@ -66,6 +66,25 @@ different zones. Top = information, bottom = interaction.
 
 Replace the `ProductsPlaceholder` div with a real `ProductCard` component.
 
+This task stays frontend-only. The available item contract is still based on
+`frontend/src/lib/agentState.ts`:
+
+```typescript
+interface ProductItem {
+  product_id: string
+  badge: string
+  rationale: string
+  key_attrs: string[]
+  type?: "over-ear" | "in-ear" | "on-ear"
+}
+```
+
+Implementation rules:
+- use `product_id` as the displayed headphone name
+- keep `badge`, `rationale`, and `key_attrs` as-is from the SSE payload
+- support optional `type` on the frontend type for image selection when present
+- if `type` is missing, infer it from `key_attrs` text or `product_id`; fall back to `over-ear`
+
 ### ProductCard component
 
 Create `frontend/src/components/ProductCard.tsx`.
@@ -74,12 +93,10 @@ Props:
 ```typescript
 interface ProductCardProps {
   name: string
-  brand: string
-  price: number
   type: "over-ear" | "in-ear" | "on-ear"
   badge: string
   rationale: string
-  key_attrs: string[]
+  keyAttrs: string[]
 }
 ```
 
@@ -88,9 +105,10 @@ Layout (single card):
 ┌──────────────────────────────┐
 │ [BADGE]                      │  ← colored top strip, full width
 │                              │
-│  [SVG icon]  Brand           │
-│              Name            │
-│              $179            │
+│        [image]               │
+│                              │
+│  Type label                  │
+│  Product name                │
 │                              │
 │  Rationale sentence here,    │
 │  why this fits your needs.   │
@@ -109,40 +127,14 @@ Layout (single card):
 | hidden gem | `#854F0B` | `#FAEEDA` |
 | recommended | use `var(--color-background-secondary)` | `var(--color-text-secondary)` |
 
-### SVG headphone icons
+### Product images
 
-Inline SVG, no external assets. Three variants by `type`:
+Use the real images in `frontend/public/`:
+- `over ear.jpg`
+- `in ear.jpg`
+- `on ear.jpg`
 
-**over-ear:**
-```svg
-<svg width="40" height="40" viewBox="0 0 40 40" fill="none">
-  <path d="M10 26v-8a10 10 0 0120 0v8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-  <rect x="6" y="23" width="7" height="9" rx="3.5" fill="currentColor" opacity="0.7"/>
-  <rect x="27" y="23" width="7" height="9" rx="3.5" fill="currentColor" opacity="0.7"/>
-</svg>
-```
-
-**in-ear:**
-```svg
-<svg width="40" height="40" viewBox="0 0 40 40" fill="none">
-  <circle cx="20" cy="24" r="7" stroke="currentColor" stroke-width="2"/>
-  <circle cx="20" cy="24" r="3" fill="currentColor" opacity="0.5"/>
-  <path d="M20 17V10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-  <path d="M16 11.5L20 9l4 2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-</svg>
-```
-
-**on-ear:**
-```svg
-<svg width="40" height="40" viewBox="0 0 40 40" fill="none">
-  <path d="M10 24v-6a10 10 0 0120 0v6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-  <rect x="6" y="21" width="8" height="8" rx="2" fill="currentColor" opacity="0.7"/>
-  <rect x="26" y="21" width="8" height="8" rx="2" fill="currentColor" opacity="0.7"/>
-  <path d="M14 20h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-</svg>
-```
-
-Icon color: use the badge background color (or `#7F77DD` as neutral fallback).
+Select the image from `type`.
 
 ### Key attr chips
 
@@ -159,13 +151,18 @@ background: var(--color-background-secondary)
 ### Cards layout in top zone
 
 ```tsx
-<div className="flex flex-col md:flex-row gap-3 p-4 overflow-y-auto">
-  {items.map(item => <ProductCard key={item.product_id} {...item} />)}
+<div className="flex justify-center gap-4 overflow-x-auto p-4">
+  {items.map((item) => <ProductCard key={item.product_id} ... />)}
 </div>
 ```
 
-Mobile: `flex-col` — cards stack vertically, zone scrolls
-Desktop: `flex-row` — 3 cards side by side, equal width (`flex: 1`)
+Layout rules:
+- cards should read taller than they are wide
+- show returned cards in a single horizontal row
+- if 3 products arrive, render 3 cards side by side
+- if 2 products arrive, center the 2 cards
+- if 1 product arrives, center the 1 card
+- on narrow screens, allow horizontal scrolling instead of collapsing the cards into very narrow columns
 
 ### Card entry animation
 
@@ -184,9 +181,9 @@ Use a simple `fadeSlideUp` keyframe:
 
 ### Card dissolve on new message
 
-When user sends a new message, cards in the top zone should fade out immediately
-(`opacity-0 transition-opacity duration-150`) before the top zone transitions to
-intent chips. Do not wait for new results — dissolve on send.
+When user sends a new message, the currently visible cards in the top zone should
+fade out immediately (`opacity-0 transition-opacity duration-150`) before the top
+zone transitions to intent chips. Do not wait for new results — dissolve on send.
 
 ---
 
@@ -236,8 +233,8 @@ Full history is out of scope for this task.
 ```
 frontend/src/components/
   ProductCard.tsx        ← new
-  ChatZone.tsx           ← new (extracts chat zone from ChatShopLayout)
-  OrbSpinner.tsx         ← new (extracted from layout, now lives in chat zone)
+  ChatZone.tsx           ← already extracted in Change 1
+  OrbSpinner.tsx         ← already extracted in Change 1
 ```
 
 Refactor `ChatShopLayout.tsx` to use these components. Keep the layout shell logic
@@ -248,7 +245,7 @@ Refactor `ChatShopLayout.tsx` to use these components. Keep the layout shell log
 ## What NOT to change
 
 - `useAgentStream` hook — no changes
-- State machine types in `agentState.ts` — no changes
+- `useAgentStream` event handling — no changes
 - Backend — no changes
 - Full conversation history — out of scope, noted for future
 
@@ -259,11 +256,11 @@ Refactor `ChatShopLayout.tsx` to use these components. Keep the layout shell log
 1. **Idle state**: centered chatbox, placeholder "What are you shopping for?", no top zone
 2. **Send a detailed message**: input disappears, orb appears in chat zone with status text
 3. **Intent fires**: intent chips appear in top zone, orb still spinning in chat zone
-4. **Products arrive**: top zone transitions to 3 product cards (staggered fade-in), orb dissolves, response streams as text in chat zone
+4. **Products arrive**: top zone transitions to product cards using `product_id` as the title and the mapped image by type, with staggered fade-in; orb dissolves and response streams as text in chat zone
 5. **Done**: input reappears with placeholder "Want something cheaper? Different style?", latest assistant message shown above input
 6. **Send follow-up**: cards dissolve immediately, orb reappears, cycle repeats
 7. **Clarify path**: no cards, orb dissolves, clarifying question streams in, input reappears with "Tell me more..."
-8. **Mobile** (narrow viewport): cards stack vertically, orb + text go column layout, chat pinned to bottom
+8. **Mobile** (narrow viewport): cards stay in a horizontal row and can scroll horizontally, orb + text go column layout, chat pinned to bottom
 
 ---
 
