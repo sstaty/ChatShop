@@ -88,20 +88,20 @@ export default function Home() {
   const placeholder = placeholders[agentState.status] ?? "Ask me anything...";
 
   const inputForm = (
-    <form onSubmit={handleSend} className="p-3 shrink-0">
-      <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-2">
+    <form onSubmit={handleSend} className="shrink-0 p-4 md:p-5">
+      <div className="flex items-center gap-3 rounded-[1.4rem] border border-[var(--color-border-primary)] bg-[var(--color-surface)] p-2 shadow-[var(--shadow-soft)]">
         <input
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder={placeholder}
           disabled={isAwaitingResponse}
-          className="w-full bg-transparent px-2 py-2 text-slate-800 outline-none placeholder:text-slate-400 text-sm"
+          className="w-full bg-transparent px-3 py-2.5 text-[15px] font-medium text-[var(--color-text-primary)] outline-none placeholder:text-[var(--color-text-tertiary)] md:text-[1rem]"
         />
         <button
           type="submit"
           disabled={isAwaitingResponse}
-          className="rounded-xl bg-sky-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-70 shrink-0"
+          className="shrink-0 rounded-[1rem] bg-[var(--color-accent)] px-5 py-3 text-[14px] font-semibold text-[var(--color-accent-contrast)] shadow-[0_10px_24px_rgba(34,211,238,0.24)] transition hover:bg-[var(--color-accent-strong)] disabled:cursor-not-allowed disabled:opacity-70"
         >
           Send
         </button>

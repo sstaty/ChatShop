@@ -278,3 +278,16 @@ Implemented Change 1 in the frontend:
 
 Deliberate deviation:
 - the bottom waiting state keeps the orb visible until the first streamed token arrives, even if `results` or `clarify` events arrive earlier. This avoids flashing the input between SSE event phases and matches the intended interaction flow more closely than keying only off `agentState.status`.
+
+Additional frontend polish completed:
+- replaced the default font system with a display/body/mono pairing in `layout.tsx`
+- added reusable surface, text, border, accent, and shadow tokens in `globals.css`
+- increased assistant-output and latest-message typography for better readability
+- restyled the shell, hero, suggestion pills, and chat input to use the shared visual system instead of ad hoc slate/sky utilities
+- after visual review, simplified the palette back toward the original light sky direction and increased text/background contrast to avoid washed-out or unreadable surfaces
+- refined the idle hero positioning so the landing-state chat sits lower and centered instead of clipping upward
+- changed the accent toward a lighter cyan-blue and replaced the chat interior grey cast with a very light cyan surface gradient
+- unified completed-response presentation with the streaming presentation so the answer stays visually consistent when the input returns
+- corrected the idle chat container height to match the redesigned input row so the landing-state field no longer clips inside the panel
+- removed the separate post-stream response layout; the response now renders in one persistent container from first token onward, with the input row simply appearing beneath it on completion
+- tightened the landing-state vertical spacing so the hero copy and idle chatbox sit closer together again

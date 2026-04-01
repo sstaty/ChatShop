@@ -7,7 +7,11 @@ const PILLS = ["running headphones", "for gym", "noise cancelling"];
 const TOP_ZONE_VISIBLE = new Set(["intent", "results"]);
 
 // Approximate height of the input form only (p-3 + p-2 + input row)
-const INPUT_HEIGHT = "80px";
+const INPUT_HEIGHT = "108px";
+const IDLE_CHAT_TOP = "58vh";
+const STARTED_CHAT_TOP = "46vh";
+const IDLE_CHAT_WIDTH = "max-w-2xl";
+const STARTED_CHAT_WIDTH = "max-w-3xl";
 
 // ---------------------------------------------------------------------------
 // IntentPanel
@@ -24,24 +28,27 @@ function IntentPanel({
 }) {
   const filterEntries = Object.entries(filters);
   return (
-    <div className="flex flex-col gap-3 p-4 h-full overflow-y-auto">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-          <p className="text-xs text-slate-400 mb-1">What I understood</p>
-          <p className="text-sm text-slate-700">{summary}</p>
+    <div className="flex h-full flex-col gap-4 overflow-y-auto p-4 md:p-5">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+        <div className="rounded-[1.4rem] border border-[var(--color-border-secondary)] bg-[rgba(255,253,248,0.9)] p-4 shadow-[var(--shadow-soft)] backdrop-blur-sm">
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-tertiary)]">What I understood</p>
+          <p className="text-[15px] leading-6 text-[var(--color-text-primary)]">{summary}</p>
         </div>
-        <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-          <p className="text-xs text-slate-400 mb-1">Searching for</p>
-          <p className="text-sm font-mono text-slate-700 wrap-break-word">{semanticQuery}</p>
+        <div className="rounded-[1.4rem] border border-[var(--color-border-secondary)] bg-[rgba(255,253,248,0.9)] p-4 shadow-[var(--shadow-soft)] backdrop-blur-sm">
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-tertiary)]">Searching for</p>
+          <p className="font-mono text-[13px] leading-6 text-[var(--color-text-secondary)] wrap-break-word md:text-[13.5px]">{semanticQuery}</p>
         </div>
-        <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-          <p className="text-xs text-slate-400 mb-2">Filters</p>
+        <div className="rounded-[1.4rem] border border-[var(--color-border-secondary)] bg-[rgba(255,253,248,0.9)] p-4 shadow-[var(--shadow-soft)] backdrop-blur-sm">
+          <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-tertiary)]">Filters</p>
           {filterEntries.length === 0 ? (
-            <p className="text-xs text-slate-400 italic">none</p>
+            <p className="text-[13px] italic text-[var(--color-text-tertiary)]">none</p>
           ) : (
-            <div className="flex flex-wrap gap-1">
+            <div className="flex flex-wrap gap-1.5">
               {filterEntries.map(([k, v]) => (
-                <span key={k} className="rounded-full bg-purple-100 px-2 py-0.5 text-xs text-purple-700">
+                <span
+                  key={k}
+                  className="rounded-full border border-[var(--color-border-secondary)] bg-[var(--color-accent-soft)] px-2.5 py-1 text-[11px] font-medium text-[var(--color-accent-strong)]"
+                >
                   {k}: {String(v)}
                 </span>
               ))}
@@ -53,7 +60,7 @@ function IntentPanel({
         {[0, 1, 2].map((i) => (
           <span
             key={i}
-            className="inline-block w-1.5 h-1.5 rounded-full bg-purple-400"
+            className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--color-accent)]"
             style={{ animation: `orb-pulse 1.2s ease-in-out ${i * 0.2}s infinite` }}
           />
         ))}
@@ -68,16 +75,22 @@ function IntentPanel({
 
 function ProductsPlaceholder({ items }: { items: ProductItem[] }) {
   return (
-    <div className="flex flex-col md:flex-row gap-3 p-4 overflow-y-auto h-full">
+    <div className="flex h-full flex-col gap-3 overflow-y-auto p-4 md:flex-row md:p-5">
       {items.map((item) => (
-        <div key={item.product_id} className="flex-1 rounded-xl border border-slate-100 bg-slate-50 p-3 text-xs">
-          <div className="font-medium text-slate-700 truncate">{item.product_id}</div>
-          <div className="text-purple-500 mt-0.5">{item.badge}</div>
-          <div className="mt-1 text-slate-400 leading-relaxed line-clamp-3">{item.rationale}</div>
+        <div
+          key={item.product_id}
+          className="flex-1 rounded-[1.5rem] border border-[var(--color-border-secondary)] bg-[rgba(255,253,248,0.94)] p-4 text-xs shadow-[var(--shadow-soft)] backdrop-blur-sm"
+        >
+          <div className="truncate text-sm font-semibold text-[var(--color-text-primary)]">{item.product_id}</div>
+          <div className="mt-1 text-[12px] font-medium uppercase tracking-[0.12em] text-[var(--color-accent)]">{item.badge}</div>
+          <div className="mt-2 line-clamp-3 text-[13px] leading-6 text-[var(--color-text-secondary)]">{item.rationale}</div>
           {item.key_attrs.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-2">
+            <div className="mt-3 flex flex-wrap gap-1.5">
               {item.key_attrs.map((attr) => (
-                <span key={attr} className="rounded-full bg-white border border-slate-200 px-2 py-0.5 text-slate-500">
+                <span
+                  key={attr}
+                  className="rounded-full border border-[var(--color-border-secondary)] bg-[var(--color-surface)] px-2.5 py-1 text-[11px] text-[var(--color-text-secondary)]"
+                >
                   {attr}
                 </span>
               ))}
@@ -125,7 +138,8 @@ export function ChatShopLayout({
   const topVisible = TOP_ZONE_VISIBLE.has(agentState.status) && hasStarted;
 
   return (
-    <main className="h-screen bg-sky-50 overflow-hidden relative">
+    <main className="relative h-screen overflow-hidden bg-[var(--color-page)] text-[var(--color-text-primary)]">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(34,211,238,0.14),transparent_34%),radial-gradient(circle_at_82%_20%,rgba(255,255,255,0.62),transparent_20%)]" />
 
       {/*
         ── Hero section ────────────────────────────────────────────────────
@@ -133,7 +147,7 @@ export function ChatShopLayout({
         `pointer-events: none` once fading so it can't block clicks.
       */}
       <div
-        className="absolute inset-x-0 flex flex-col items-center justify-end px-4 text-center pb-8"
+        className="absolute inset-x-0 flex flex-col items-center justify-end px-6 text-center md:px-8"
         style={{
           height: `calc(46vh - 16px)`,
           opacity: hasStarted ? 0 : 1,
@@ -141,13 +155,20 @@ export function ChatShopLayout({
           pointerEvents: hasStarted ? "none" : "auto",
         }}
       >
-        <h1 className="text-5xl font-bold text-slate-900 tracking-tight mb-3">ChatShop</h1>
-        <p className="text-lg text-slate-600">
+        <div className="mb-3 rounded-full border border-[var(--color-border-primary)] bg-[rgba(255,255,255,0.82)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-accent-strong)] backdrop-blur-sm">
+          Agent-led shopping interface
+        </div>
+        <h1 className="text-balance font-serif text-6xl font-semibold tracking-[-0.04em] text-[var(--color-text-primary)] sm:text-7xl md:text-[5.5rem]">
+          ChatShop
+        </h1>
+        <p className="mt-4 max-w-2xl text-balance text-[17px] leading-8 text-[var(--color-text-secondary)] md:text-[19px]">
           Tell me what you need and I will find it.
-          <br/>
+          <br />
           You don&apos;t have to browse categories or apply filters.
         </p>
-        <p className="text-s text-slate-400 mt-3">Currently a headphones demo.</p>
+        <p className="mt-4 text-[13px] font-medium uppercase tracking-[0.16em] text-[var(--color-text-tertiary)]">
+          Currently a headphones demo.
+        </p>
       </div>
 
       {/*
@@ -161,7 +182,7 @@ export function ChatShopLayout({
           transition: "opacity 0.5s ease 0.4s",
         }}
       >
-        <span className="text-xs font-semibold text-slate-400 tracking-widest uppercase">
+        <span className="rounded-full border border-[var(--color-border-primary)] bg-[rgba(255,255,255,0.76)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-tertiary)] backdrop-blur-sm">
           ChatShop
         </span>
       </div>
@@ -180,7 +201,7 @@ export function ChatShopLayout({
           pointerEvents: topVisible ? "auto" : "none",
         }}
       >
-        <div className="w-full max-w-3xl h-full">
+        <div className="h-full w-full max-w-5xl">
           <TopZoneContent agentState={agentState} />
         </div>
       </div>
@@ -193,11 +214,15 @@ export function ChatShopLayout({
       <div
         className="absolute inset-x-0 flex justify-center px-4 md:px-8"
         style={{
-          top: "46vh",
-          height: hasStarted ? "30vh" : INPUT_HEIGHT,
+          top: hasStarted ? STARTED_CHAT_TOP : IDLE_CHAT_TOP,
+          height: hasStarted ? "32vh" : INPUT_HEIGHT,
+          transform: hasStarted ? "none" : "translateY(-50%)",
+          transition: "top 220ms ease, transform 220ms ease, height 220ms ease",
         }}
       >
-        <div className="w-full max-w-3xl h-full rounded-3xl border border-sky-200 bg-white shadow-xl overflow-hidden flex flex-col">
+        <div
+          className={`flex h-full w-full flex-col overflow-hidden rounded-[2rem] border border-[var(--color-border-primary)] bg-[rgba(255,255,255,0.94)] shadow-[var(--shadow-panel)] backdrop-blur-md ${hasStarted ? STARTED_CHAT_WIDTH : IDLE_CHAT_WIDTH}`}
+        >
           <ChatZone
             agentState={agentState}
             isAwaitingResponse={isAwaitingResponse}
@@ -214,26 +239,33 @@ export function ChatShopLayout({
         Below the chatbox. Fade out on first send.
       */}
       <div
-        className="absolute inset-x-0 flex justify-center px-4 pt-10"
+        className="absolute inset-x-0 flex justify-center px-4 pt-8"
         style={{
-          top: `calc(46vh + ${INPUT_HEIGHT} + 14px)`,
+          top: hasStarted ? `calc(${STARTED_CHAT_TOP} + ${INPUT_HEIGHT} + 14px)` : `calc(${IDLE_CHAT_TOP} + 52px)`,
           opacity: hasStarted ? 0 : 1,
           transition: "opacity 0.4s ease",
           pointerEvents: hasStarted ? "none" : "auto",
         }}
       >
-        <div className="flex flex-wrap gap-4 justify-center">
+        <div className="flex flex-wrap justify-center gap-3">
           {PILLS.map((pill) => (
             <button
               key={pill}
               onClick={() => onPillClick(pill)}
-              className="rounded-full border border-sky-200 bg-white px-4 py-1.5 text-sm text-slate-600 hover:bg-sky-50 hover:border-sky-300 transition-colors shadow-sm"
+              className="rounded-full border border-[var(--color-border-primary)] bg-[rgba(255,255,255,0.92)] px-4 py-2 text-[13px] font-medium text-[var(--color-text-secondary)] shadow-[var(--shadow-soft)] transition-colors hover:border-[var(--color-accent)] hover:bg-[var(--color-accent-soft)] hover:text-[var(--color-accent-strong)]"
             >
               {pill}
             </button>
           ))}
         </div>
       </div>
+
+      <style>{`
+        @keyframes orb-pulse {
+          0%, 100% { opacity: 0.3; transform: scale(0.8); }
+          50% { opacity: 1; transform: scale(1); }
+        }
+      `}</style>
     </main>
   );
 }

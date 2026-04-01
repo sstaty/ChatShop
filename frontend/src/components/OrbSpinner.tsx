@@ -4,16 +4,16 @@ interface OrbSpinnerProps {
 }
 
 const RINGS = [
-  { size: 80, color: "#534AB7", duration: "1.2s", reverse: false },
-  { size: 56, color: "#7B74D4", duration: "0.9s", reverse: true },
-  { size: 32, color: "#A9A3E8", duration: "0.6s", reverse: false },
+  { size: 80, color: "var(--color-accent)", duration: "1.2s", reverse: false },
+  { size: 56, color: "#38bdf8", duration: "0.9s", reverse: true },
+  { size: 32, color: "#7dd3fc", duration: "0.6s", reverse: false },
 ] as const;
 
 export function OrbSpinner({ message, detail = "" }: OrbSpinnerProps) {
   return (
     <>
-      <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:items-center sm:text-left">
-        <div className="relative flex h-20 w-20 shrink-0 items-center justify-center">
+      <div className="flex max-w-xl flex-col items-center gap-5 text-center sm:flex-row sm:items-center sm:gap-6 sm:text-left">
+        <div className="relative flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-[var(--color-accent-soft)]">
           {RINGS.map(({ size, color, duration, reverse }) => (
             <span
               key={size}
@@ -27,9 +27,15 @@ export function OrbSpinner({ message, detail = "" }: OrbSpinnerProps) {
             />
           ))}
         </div>
-        <div>
-          <p className="text-sm font-medium text-slate-700">{message}</p>
-          {detail ? <p className="mt-1 text-xs text-slate-400">{detail}</p> : null}
+        <div className="space-y-1.5">
+          <p className="text-base font-semibold tracking-[-0.01em] text-[var(--color-text-primary)] md:text-[1.05rem]">
+            {message}
+          </p>
+          {detail ? (
+            <p className="text-sm leading-6 text-[var(--color-text-secondary)] md:text-[0.95rem]">
+              {detail}
+            </p>
+          ) : null}
         </div>
       </div>
       <style>{`
