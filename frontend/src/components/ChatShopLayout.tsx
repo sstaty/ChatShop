@@ -1,47 +1,13 @@
 "use client";
 
+import { ChatZone } from "@/components/ChatZone";
 import { AgentState, ProductItem } from "@/lib/agentState";
 
 const PILLS = ["running headphones", "for gym", "noise cancelling"];
-const TOP_ZONE_VISIBLE = new Set(["thinking", "intent", "results"]);
+const TOP_ZONE_VISIBLE = new Set(["intent", "results"]);
 
 // Approximate height of the input form only (p-3 + p-2 + input row)
 const INPUT_HEIGHT = "80px";
-
-// ---------------------------------------------------------------------------
-// OrbSpinner
-// ---------------------------------------------------------------------------
-
-function OrbSpinner({ message, detail }: { message: string; detail: string }) {
-  return (
-    <div className="flex flex-col items-center justify-center h-full gap-4">
-      <div className="relative flex items-center justify-center w-20 h-20">
-        {(
-          [
-            { size: 80, color: "#534AB7", duration: "1.2s", rev: false },
-            { size: 56, color: "#7B74D4", duration: "0.9s", rev: true },
-            { size: 32, color: "#A9A3E8", duration: "0.6s", rev: false },
-          ] as const
-        ).map(({ size, color, duration, rev }) => (
-          <span
-            key={size}
-            className="absolute inline-block rounded-full border-2 border-transparent"
-            style={{
-              width: size,
-              height: size,
-              borderTopColor: color,
-              animation: `orb-spin ${duration} linear infinite${rev ? " reverse" : ""}`,
-            }}
-          />
-        ))}
-      </div>
-      <div className="text-center">
-        <p className="text-sm font-medium text-slate-700">{message}</p>
-        {detail && <p className="text-xs text-slate-400 mt-0.5">{detail}</p>}
-      </div>
-    </div>
-  );
-}
 
 // ---------------------------------------------------------------------------
 // IntentPanel
@@ -66,7 +32,7 @@ function IntentPanel({
         </div>
         <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
           <p className="text-xs text-slate-400 mb-1">Searching for</p>
-          <p className="text-sm font-mono text-slate-700 break-words">{semanticQuery}</p>
+          <p className="text-sm font-mono text-slate-700 wrap-break-word">{semanticQuery}</p>
         </div>
         <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
           <p className="text-xs text-slate-400 mb-2">Filters</p>
@@ -124,8 +90,6 @@ function ProductsPlaceholder({ items }: { items: ProductItem[] }) {
 }
 
 function TopZoneContent({ agentState }: { agentState: AgentState }) {
-  if (agentState.status === "thinking")
-    return <OrbSpinner message={agentState.message} detail={agentState.detail} />;
   if (agentState.status === "intent")
     return <IntentPanel summary={agentState.summary} semanticQuery={agentState.semanticQuery} filters={agentState.filters} />;
   if (agentState.status === "results")
@@ -140,19 +104,23 @@ function TopZoneContent({ agentState }: { agentState: AgentState }) {
 interface ChatShopLayoutProps {
   agentState: AgentState;
   hasStarted: boolean;
+  isAwaitingResponse: boolean;
+  isStreaming: boolean;
+  streamingText: string;
+  latestAssistantMessage: string | null;
   onPillClick: (text: string) => void;
   inputForm: React.ReactNode;
-  messageRail: React.ReactNode;
-  scrollRef: React.RefObject<HTMLDivElement | null>;
 }
 
 export function ChatShopLayout({
   agentState,
   hasStarted,
+  isAwaitingResponse,
+  isStreaming,
+  streamingText,
+  latestAssistantMessage,
   onPillClick,
   inputForm,
-  messageRail,
-  scrollRef,
 }: ChatShopLayoutProps) {
   const topVisible = TOP_ZONE_VISIBLE.has(agentState.status) && hasStarted;
 
@@ -227,26 +195,17 @@ export function ChatShopLayout({
         style={{
           top: "46vh",
           height: hasStarted ? "30vh" : INPUT_HEIGHT,
-          transition: "height 1.4s cubic-bezier(0.4, 0, 0.2, 1)",
         }}
       >
         <div className="w-full max-w-3xl h-full rounded-3xl border border-sky-200 bg-white shadow-xl overflow-hidden flex flex-col">
-          {/* Message rail — clipped during grow, scrollable once expanded */}
-          <div
-            ref={scrollRef}
-            className="flex-1 min-h-0"
-            style={{
-              overflowY: hasStarted ? "auto" : "hidden",
-              opacity: hasStarted ? 1 : 0,
-              transition: "opacity 0.4s ease 0.8s",
-            }}
-          >
-            {messageRail}
-          </div>
-          {/* Input form — always visible */}
-          <div className={hasStarted ? "border-t border-slate-100 shrink-0" : "shrink-0"}>
-            {inputForm}
-          </div>
+          <ChatZone
+            agentState={agentState}
+            isAwaitingResponse={isAwaitingResponse}
+            isStreaming={isStreaming}
+            streamingText={streamingText}
+            latestAssistantMessage={latestAssistantMessage}
+            inputForm={inputForm}
+          />
         </div>
       </div>
 
@@ -275,14 +234,6 @@ export function ChatShopLayout({
           ))}
         </div>
       </div>
-
-      <style>{`
-        @keyframes orb-spin { to { transform: rotate(360deg); } }
-        @keyframes orb-pulse {
-          0%, 100% { opacity: 0.3; transform: scale(0.8); }
-          50%       { opacity: 1;   transform: scale(1); }
-        }
-      `}</style>
     </main>
   );
 }

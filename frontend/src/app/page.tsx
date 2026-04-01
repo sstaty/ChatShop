@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, useRef, useState } from "react";
 import { ChatShopLayout } from "@/components/ChatShopLayout";
 import { useAgentStream } from "@/hooks/useAgentStream";
 
@@ -12,50 +12,62 @@ type Message = {
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
-  const [isSending, setIsSending] = useState(false);
+  const [isAwaitingResponse, setIsAwaitingResponse] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [streamingText, setStreamingText] = useState("");
+  const [latestAssistantMessage, setLatestAssistantMessage] = useState<string | null>(null);
   const [hasStarted, setHasStarted] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const streamingIndexRef = useRef<number | null>(null);
-  const nextMessagesRef = useRef<Message[]>([]);
+  const streamingTextRef = useRef("");
+  const isStreamingRef = useRef(false);
 
   const { agentState, send } = useAgentStream({
     onChunk(token) {
-      if (streamingIndexRef.current === null) {
-        streamingIndexRef.current = nextMessagesRef.current.length;
-        setMessages([...nextMessagesRef.current, { role: "assistant", content: token }]);
-      } else {
-        const idx = streamingIndexRef.current;
-        setMessages((prev) =>
-          prev.map((msg, i) => (i === idx ? { ...msg, content: msg.content + token } : msg))
-        );
+      if (!isStreamingRef.current) {
+        isStreamingRef.current = true;
+        setIsStreaming(true);
       }
+      streamingTextRef.current += token;
+      setStreamingText(streamingTextRef.current);
     },
     onDone() {
-      streamingIndexRef.current = null;
-      setIsSending(false);
+      const completedMessage = streamingTextRef.current.trim();
+
+      if (completedMessage) {
+        setLatestAssistantMessage(completedMessage);
+        setMessages((prev) => [...prev, { role: "assistant", content: completedMessage }]);
+      }
+
+      streamingTextRef.current = "";
+      isStreamingRef.current = false;
+      setStreamingText("");
+      setIsStreaming(false);
+      setIsAwaitingResponse(false);
     },
     onError(msg) {
-      streamingIndexRef.current = null;
-      setMessages((prev) => [...prev, { role: "assistant", content: `Error: ${msg}` }]);
-      setIsSending(false);
+      const errorMessage = `Error: ${msg}`;
+      streamingTextRef.current = "";
+      isStreamingRef.current = false;
+      setStreamingText("");
+      setIsStreaming(false);
+      setIsAwaitingResponse(false);
+      setLatestAssistantMessage(errorMessage);
+      setMessages((prev) => [...prev, { role: "assistant", content: errorMessage }]);
     },
   });
 
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [messages, agentState]);
-
   const sendMessage = async (text: string) => {
-    if (!text.trim() || isSending) return;
+    if (!text.trim() || isAwaitingResponse) return;
+
     const userMessage: Message = { role: "user", content: text };
     const nextMessages = [...messages, userMessage];
-    nextMessagesRef.current = nextMessages;
-    streamingIndexRef.current = null;
+
     setMessages(nextMessages);
     setHasStarted(true);
-    setIsSending(true);
+    setIsAwaitingResponse(true);
+    setIsStreaming(false);
+    setStreamingText("");
+    streamingTextRef.current = "";
+    isStreamingRef.current = false;
     await send(text, messages);
   };
 
@@ -67,6 +79,14 @@ export default function Home() {
     sendMessage(trimmed);
   };
 
+  const placeholders: Record<string, string> = {
+    idle: "What are you shopping for?",
+    results: "Want something cheaper? Different style?",
+    clarify: "Tell me more...",
+  };
+
+  const placeholder = placeholders[agentState.status] ?? "Ask me anything...";
+
   const inputForm = (
     <form onSubmit={handleSend} className="p-3 shrink-0">
       <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-2">
@@ -74,50 +94,31 @@ export default function Home() {
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder={hasStarted ? "Type your message..." : "What are you shopping for?"}
-          disabled={isSending}
+          placeholder={placeholder}
+          disabled={isAwaitingResponse}
           className="w-full bg-transparent px-2 py-2 text-slate-800 outline-none placeholder:text-slate-400 text-sm"
         />
         <button
           type="submit"
-          disabled={isSending}
+          disabled={isAwaitingResponse}
           className="rounded-xl bg-sky-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-70 shrink-0"
         >
-          {isSending ? "Thinking..." : "Send"}
+          Send
         </button>
       </div>
     </form>
-  );
-
-  const messageRail = (
-    <div className="h-full px-4 py-3 space-y-3 flex flex-col">
-      {messages.map((message, index) => (
-        <div
-          key={`${message.role}-${index}`}
-          className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
-        >
-          <div
-            className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-              message.role === "user"
-                ? "bg-sky-500 text-white"
-                : "bg-slate-100 text-slate-800"
-            }`}
-          >
-            {message.content}
-          </div>
-        </div>
-      ))}
-    </div>
   );
 
   return (
     <ChatShopLayout
       agentState={agentState}
       hasStarted={hasStarted}
+      isAwaitingResponse={isAwaitingResponse}
+      isStreaming={isStreaming}
+      streamingText={streamingText}
+      latestAssistantMessage={latestAssistantMessage}
       onPillClick={sendMessage}
       inputForm={inputForm}
-      messageRail={messageRail}
-      scrollRef={scrollRef}
     />
   );
 }
