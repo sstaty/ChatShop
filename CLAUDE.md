@@ -1,6 +1,6 @@
 # ChatShop — Claude Code Instructions
 
-
+- Keep your context windows focus on the current goal. Ingest only relevant information.
 
 ## Communication style
 - ALWAYS default to conversation over directly implementing plan or code. First conversation, then agreement, then action. Prioritize conversation, asking for extra information, suggesting better solution, brainstorming. 
