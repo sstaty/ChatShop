@@ -22,8 +22,8 @@ from chatshop.rag.hybrid_search import SearchResult
 
 def _sample_products() -> list[Product]:
     return [
-        Product(product_id="B001", title="Sony WH-1000XM5", price=349.99),
-        Product(product_id="B002", title="Anker Q35", price=79.00),
+        Product(product_id="B001", title="Sony WH-1000XM5", price=349.99, type="over-ear"),
+        Product(product_id="B002", title="Anker Q35", price=79.00, type="in-ear"),
     ]
 
 
@@ -117,8 +117,11 @@ def test_loop_state_defaults():
     assert state.iteration == 0
     assert state.history == []
     assert state.last_results == []
+    assert state.curated_products == []
     assert state.evaluator_feedback is None
     assert state.last_plan is None
+    assert state.first_plan is None
+    assert state.last_eval is None
 
 
 # ── run() — clarify ───────────────────────────────────────────────────────────
@@ -344,6 +347,34 @@ def test_curator_not_called_when_no_products():
     loop._curator.curate.assert_not_called()
 
 
+def test_synthesize_receives_curated_products():
+    """synthesize must be called with curated picks, not all search results."""
+    # Search returns 2 products but curator only picks the first one
+    all_products = _sample_products()  # 2 products
+    curator_output = ProductSelectionOutput(
+        intro="Found 1 top pick.",
+        picks=[
+            PickedProduct(
+                product_id="B001",
+                badge="best match",
+                rationale="Perfect for commuting.",
+                key_attrs=["wireless", "ANC"],
+            )
+        ],
+    )
+
+    loop = _make_loop([_search_action(), _respond_action()])
+    loop._curator.curate.return_value = curator_output
+
+    list(loop.stream_with_trace("wireless headphones", history=[]))
+
+    call_messages = loop._conversationist._llm.stream.call_args[0][0]
+    last_msg = call_messages[-1]["content"]
+    # Only the curated product should appear in the catalog
+    assert "Sony WH-1000XM5" in last_msg
+    assert "Anker Q35" not in last_msg
+
+
 def test_stream_emits_products_event_after_search():
     """stream_with_trace must emit a ProductsEvent after curator runs."""
     loop = _make_loop([_search_action(), _respond_action()])
@@ -352,6 +383,12 @@ def test_stream_emits_products_event_after_search():
     assert len(products_events) == 1
     assert products_events[0].intro == "Found 2 great options."
     assert len(products_events[0].items) == 2
+    assert products_events[0].items[0]["product_id"] == "Sony WH-1000XM5"
+    assert products_events[0].items[0]["price"] == 349.99
+    assert products_events[0].items[0]["type"] == "over-ear"
+    assert products_events[0].items[1]["product_id"] == "Anker Q35"
+    assert products_events[0].items[1]["price"] == 79.00
+    assert products_events[0].items[1]["type"] == "in-ear"
 
 
 def test_stream_no_products_event_when_empty_results():

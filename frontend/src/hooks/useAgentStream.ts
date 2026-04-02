@@ -18,14 +18,14 @@ interface UseAgentStreamOptions {
 export function useAgentStream({ onChunk, onDone, onError, onProducts }: UseAgentStreamOptions) {
   const [agentState, setAgentState] = useState<AgentState>({ status: "idle" });
 
-  const send = async (message: string, history: Message[]) => {
+  const send = async (message: string, history: Message[], shownProducts: ProductItem[] = []) => {
     setAgentState({ status: "thinking", message: "Decoding your request...", detail: "" });
 
     try {
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message, history }),
+        body: JSON.stringify({ message, history, shown_products: shownProducts }),
       });
 
       if (!response.ok) throw new Error(`HTTP ${response.status}`);

@@ -66,8 +66,8 @@ different zones. Top = information, bottom = interaction.
 
 Replace the `ProductsPlaceholder` div with a real `ProductCard` component.
 
-This task stays frontend-only. The available item contract is still based on
-`frontend/src/lib/agentState.ts`:
+The final implementation uses a thin backend enrichment step before the SSE
+`products` event reaches the frontend. The frontend item contract is:
 
 ```typescript
 interface ProductItem {
@@ -75,15 +75,17 @@ interface ProductItem {
   badge: string
   rationale: string
   key_attrs: string[]
+  price?: number
   type?: "over-ear" | "in-ear" | "on-ear"
 }
 ```
 
 Implementation rules:
-- use `product_id` as the displayed headphone name
+- backend rewrites `product_id` to the product title before emitting the SSE event
+- backend sends `price` as a dedicated numeric field when available
 - keep `badge`, `rationale`, and `key_attrs` as-is from the SSE payload
-- support optional `type` on the frontend type for image selection when present
-- if `type` is missing, infer it from `key_attrs` text or `product_id`; fall back to `over-ear`
+- include `type` when it can be mapped from the backend product model
+- if `type` is missing, the frontend still infers it from `key_attrs` text or `product_id`; fall back to `over-ear`
 
 ### ProductCard component
 
@@ -93,6 +95,7 @@ Props:
 ```typescript
 interface ProductCardProps {
   name: string
+  price?: number
   type: "over-ear" | "in-ear" | "on-ear"
   badge: string
   rationale: string
@@ -109,6 +112,7 @@ Layout (single card):
 │                              │
 │  Type label                  │
 │  Product name                │
+│  Price                       │
 │                              │
 │  Rationale sentence here,    │
 │  why this fits your needs.   │
@@ -158,6 +162,7 @@ background: var(--color-background-secondary)
 
 Layout rules:
 - cards should read taller than they are wide
+- image area should remain square
 - show returned cards in a single horizontal row
 - if 3 products arrive, render 3 cards side by side
 - if 2 products arrive, center the 2 cards
@@ -256,7 +261,7 @@ Refactor `ChatShopLayout.tsx` to use these components. Keep the layout shell log
 1. **Idle state**: centered chatbox, placeholder "What are you shopping for?", no top zone
 2. **Send a detailed message**: input disappears, orb appears in chat zone with status text
 3. **Intent fires**: intent chips appear in top zone, orb still spinning in chat zone
-4. **Products arrive**: top zone transitions to product cards using `product_id` as the title and the mapped image by type, with staggered fade-in; orb dissolves and response streams as text in chat zone
+4. **Products arrive**: top zone transitions to product cards using the backend-enriched product title in `product_id` and the mapped image by type, with staggered fade-in; orb dissolves and response streams as text in chat zone
 5. **Done**: input reappears with placeholder "Want something cheaper? Different style?", latest assistant message shown above input
 6. **Send follow-up**: cards dissolve immediately, orb reappears, cycle repeats
 7. **Clarify path**: no cards, orb dissolves, clarifying question streams in, input reappears with "Tell me more..."

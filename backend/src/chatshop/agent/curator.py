@@ -12,7 +12,7 @@ import json
 import logging
 from typing import TYPE_CHECKING
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field as PydanticField
 
 from chatshop.data.models import Product
 
@@ -36,7 +36,7 @@ class PickedProduct(BaseModel):
 
 class ProductSelectionOutput(BaseModel):
     intro: str              # e.g. "Found 3 that fit perfectly."
-    picks: list[PickedProduct]  # max 3
+    picks: list[PickedProduct] = PydanticField(max_length=3)
 
 
 # ---------------------------------------------------------------------------
@@ -65,6 +65,7 @@ Also write a short intro sentence (e.g. "Found 3 great options for commuting und
 Rules:
 - Assign each picked product a different badge where possible.
 - Rationale must reference the user's specific intent, not generic praise.
+- Rationale must NOT start with the product name — it is already shown on the card. Start with the use-case fit, a key strength, or a differentiator.
 - key_attrs should be the 2-4 specs most relevant to the user's request.
 - Only pick products from the provided list. Do not invent products.\
 """

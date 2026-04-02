@@ -73,6 +73,36 @@ THINKING_MESSAGES: dict[str, dict[str, str]] = {
 }
 
 
+def _card_type(product: Product) -> str:
+    """Map backend product types to the frontend card image variants."""
+    if product.type in {"over-ear", "in-ear", "on-ear"}:
+        return product.type
+    if product.type == "open-back":
+        return "over-ear"
+    return ""
+
+
+def _product_card_item(picked_product: object, products_by_id: dict[str, Product]) -> dict:
+    """Enrich a curator pick for the frontend cards.
+
+    The frontend still reads the title from ``product_id`` for now, so the SSE
+    payload intentionally swaps the raw ID for the human-readable product title.
+    """
+    item = picked_product.model_dump()
+    product = products_by_id.get(item["product_id"])
+
+    if product is None:
+        return item
+
+    item["product_id"] = product.title
+    if product.price is not None:
+        item["price"] = product.price
+    product_type = _card_type(product)
+    if product_type:
+        item["type"] = product_type
+    return item
+
+
 def _filters_dict(filters: SearchFilters) -> dict:
     """Convert SearchFilters to a plain dict for IntentEvent."""
     d: dict = {}
@@ -82,42 +112,6 @@ def _filters_dict(filters: SearchFilters) -> dict:
         d["min_price"] = filters.min_price
     d.update(filters.extra_filters)
     return d
-
-
-@dataclass
-class AgentResult:
-    """Structured output from a single agent turn, used by the eval system.
-
-    Captures intermediate pipeline state alongside the final response so
-    evals can run deterministic checks on action routing, filter extraction,
-    and response strategy without re-parsing streamed output.
-    """
-
-    planner_output: PlannerOutput
-    """The first planner decision for this turn (action, filters, strategy)."""
-
-    search_results: list[Product] | None
-    """Products returned by the search step, or None for clarify/respond turns."""
-
-    evaluator_output: EvaluatorOutput | None
-    """Evaluator diagnosis from the last search iteration, or None if no search ran."""
-
-    final_response: str
-    """The complete synthesized response text."""
-
-    iterations: int
-    """Number of plan→search→evaluate iterations completed before responding."""
-
-    trace_id: str | None = None
-    """Langfuse trace ID for this turn (informational)."""
-
-
-# Deprecated: use typed SSEEvent types from chatshop.api.sse_events instead.
-@dataclass
-class TraceEvent:
-    """Deprecated. Use ThinkingEvent / IntentEvent etc. from chatshop.api.sse_events."""
-
-    text: str
 
 
 def _format_filters(filters: SearchFilters) -> str:
@@ -150,6 +144,25 @@ def _format_feedback(
     )
 
 
+def _hydrate_shown_products(items: list[dict]) -> list[Product]:
+    """Reconstruct minimal Product objects from frontend ProductItem dicts.
+
+    The frontend stores product_id as the product title (swapped in
+    _product_card_item), so we use it for both product_id and title.
+    Price and type are preserved where available.
+    """
+    return [
+        Product(
+            product_id=d["product_id"],
+            title=d["product_id"],
+            price=d.get("price"),
+            type=d.get("type", ""),
+        )
+        for d in items
+        if d.get("product_id")
+    ]
+
+
 # ---------------------------------------------------------------------------
 # Loop state
 # ---------------------------------------------------------------------------
@@ -162,8 +175,28 @@ class LoopState:
     iteration: int = 0
     history: list[dict] = field(default_factory=list)
     last_results: list[Product] = field(default_factory=list)
+    curated_products: list[Product] = field(default_factory=list)
     evaluator_feedback: str | None = None
-    last_plan: PlannerOutput | None = None
+    last_plan: "PlannerOutput | None" = None
+    first_plan: "PlannerOutput | None" = None
+    last_eval: "EvaluatorOutput | None" = None
+
+
+# ---------------------------------------------------------------------------
+# AgentResult
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class AgentResult:
+    """Structured output from a single agent turn, used by the eval system."""
+
+    planner_output: "PlannerOutput"
+    search_results: list[Product] | None
+    evaluator_output: "EvaluatorOutput | None"
+    final_response: str
+    iterations: int
+    trace_id: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -174,20 +207,18 @@ class LoopState:
 class AgentLoop:
     """Runs the plan → search → evaluate cycle for a single conversation turn.
 
-    This class is the only entry point the UI layer needs to call. It wires
-    together all Phase 2 modules and enforces the iteration cap.
-
-    ``stream_with_trace`` is the canonical loop implementation. ``run`` and
-    ``stream`` are thin wrappers that discard :class:`TraceEvent` items.
+    ``stream_with_trace`` is the canonical entry point. ``run_with_result``
+    is a thin wrapper for the eval system. ``run`` and ``stream`` are
+    convenience wrappers that strip trace events.
     """
 
     def __init__(
         self,
-        planner: Planner,
-        evaluator: Evaluator,
-        hybrid_search: HybridSearch,
-        llm_client: LLMClient,
-        curator: Curator,
+        planner: "Planner",
+        evaluator: "Evaluator",
+        hybrid_search: "HybridSearch",
+        llm_client: "LLMClient",
+        curator: "Curator",
         max_iterations: int = 3,
     ) -> None:
         self._planner = planner
@@ -205,102 +236,6 @@ class AgentLoop:
         """Run the full agent loop and return the final response string."""
         return "".join(self.stream(message, history))
 
-    def run_with_result(
-        self, message: str, history: list[dict], *, parent_trace: object | None = None,
-    ) -> AgentResult:
-        """Run the full agent loop and return a structured :class:`AgentResult`.
-
-        Drives the same plan → search → evaluate cycle as
-        :meth:`stream_with_trace` but collects intermediate state instead of
-        yielding it. Used by the eval system to run deterministic checks on
-        action routing, filter extraction, and response strategy.
-
-        If *parent_trace* is provided (a Langfuse trace or span), this run is
-        nested under it as a span instead of creating a new top-level trace.
-        """
-        if parent_trace is not None:
-            trace = create_span(parent_trace, "agent_turn_eval", input={"user_message": message})
-        else:
-            trace = create_trace("agent_turn_eval", metadata={"user_message": message})
-        trace_id: str | None = getattr(trace, "id", None)
-
-        state = LoopState(history=history + [{"role": "user", "content": message}])
-        first_plan: PlannerOutput | None = None
-        last_eval: EvaluatorOutput | None = None
-
-        while state.iteration < self._max_iterations:
-            planner_span = create_span(trace, "planner", input={"iteration": state.iteration})
-            plan = self._planner.plan(
-                history=state.history,
-                previous_results=state.last_results or None,
-                evaluator_feedback=state.evaluator_feedback,
-                metadata=llm_metadata(planner_span, "planner"),
-            )
-            end_span(planner_span, output={"action": plan.action})
-            if first_plan is None:
-                first_plan = plan
-            state.last_plan = plan
-
-            if plan.action == "clarify":
-                conv_span = create_span(trace, "conversationist", input={"mode": "clarify"})
-                response = "".join(
-                    self._conversationist.clarify(plan.question, state.history, stream=True, metadata=llm_metadata(conv_span, "conversationist-clarify"))  # type: ignore[misc]
-                )
-                end_span(conv_span, output={"mode": "clarify"})
-                if parent_trace is not None:
-                    end_span(trace, output={"action": "clarify"})
-                else:
-                    flush_observability()
-                return AgentResult(first_plan, None, None, response, state.iteration, trace_id)
-
-            if plan.action == "respond":
-                conv_span = create_span(trace, "conversationist", input={"mode": "synthesize", "strategy": plan.response_strategy})
-                response = "".join(
-                    self._conversationist.synthesize(  # type: ignore[misc]
-                        plan.response_strategy, state.history, state.last_results, stream=True,
-                        metadata=llm_metadata(conv_span, "conversationist-synthesize"),
-                    )
-                )
-                end_span(conv_span, output={"strategy": plan.response_strategy})
-                if parent_trace is not None:
-                    end_span(trace, output={"action": "respond"})
-                else:
-                    flush_observability()
-                return AgentResult(first_plan, state.last_results or None, last_eval, response, state.iteration, trace_id)
-
-            # action == "search"
-            sp = plan.search_plan
-            search_span = create_span(trace, "hybrid_search", input={"semantic_query": sp.semantic_query})
-            result = self._search.search(sp)
-            end_span(search_span, output={"candidate_count": result.candidate_count})
-
-            eval_span = create_span(trace, "evaluator", input={"candidate_count": result.candidate_count})
-            last_eval = self._evaluator.evaluate(
-                intent_summary=plan.intent_summary,
-                constraints=result.applied_filters,
-                products=result.products,
-                candidate_count=result.candidate_count,
-                metadata=llm_metadata(eval_span, "evaluator"),
-            )
-            end_span(eval_span, output={"diagnosis": last_eval.diagnosis})
-
-            state.last_results = result.products
-            state.evaluator_feedback = _format_feedback(last_eval, sp, result.candidate_count)
-            state.iteration += 1
-
-        # Iteration cap — respond with whatever we have
-        strategy = strategy_for_result_count(len(state.last_results))
-        conv_span = create_span(trace, "conversationist", input={"mode": "synthesize", "strategy": strategy})
-        response = "".join(
-            self._conversationist.synthesize(strategy, state.history, state.last_results, stream=True, metadata=llm_metadata(conv_span, "conversationist-synthesize"))  # type: ignore[misc]
-        )
-        end_span(conv_span, output={"strategy": strategy})
-        if parent_trace is not None:
-            end_span(trace, output={"action": "respond", "capped": True})
-        else:
-            flush_observability()
-        return AgentResult(first_plan, state.last_results or None, last_eval, response, state.iteration, trace_id)
-
     def stream(self, message: str, history: list[dict]) -> Iterator[str]:
         """Run the agent loop and yield the final response token by token."""
         for event in self.stream_with_trace(message, history):
@@ -308,145 +243,209 @@ class AgentLoop:
                 yield event.text
 
     def stream_with_trace(
-        self, message: str, history: list[dict]
+        self,
+        message: str,
+        history: list[dict],
+        shown_products: list[dict] | None = None,
     ) -> Iterator[SSEEvent]:
         """Run the agent loop yielding typed SSEEvent instances.
 
-        Yields ThinkingEvent / IntentEvent / ProductsEvent during planning and
-        retrieval, then ResponseChunkEvent tokens during synthesis, and a
-        DoneEvent at the end.
-
-        Uses observability.py (langfuse) to track LLM calls, context, usage.
+        Args:
+            message: The current user message.
+            history: Prior conversation turns in OpenAI message format.
+            shown_products: Product cards visible to the user from the
+                previous turn. Pre-populates curated_products so follow-up
+                questions have catalog context without a new search.
         """
+        trace = create_trace("agent_turn", metadata={"user_message": message})
+        state = LoopState(
+            history=history + [{"role": "user", "content": message}],
+            curated_products=_hydrate_shown_products(shown_products) if shown_products else [],
+        )
+        yield from self._run(state, trace)
+
+    def run_with_result(
+        self,
+        message: str,
+        history: list[dict],
+        shown_products: list[dict] | None = None,
+        *,
+        parent_trace: object | None = None,
+    ) -> AgentResult:
+        """Run the full agent loop and return a structured :class:`AgentResult`.
+
+        Thin wrapper over :meth:`_run` — collects response tokens and reads
+        final state after the generator completes.
+        """
+        if parent_trace is not None:
+            trace = create_span(parent_trace, "agent_turn_eval", input={"user_message": message})
+        else:
+            trace = create_trace("agent_turn_eval", metadata={"user_message": message})
+        trace_id: str | None = getattr(trace, "id", None)
+
+        state = LoopState(
+            history=history + [{"role": "user", "content": message}],
+            curated_products=_hydrate_shown_products(shown_products) if shown_products else [],
+        )
+        tokens: list[str] = []
+        for event in self._run(state, trace):
+            if isinstance(event, ResponseChunkEvent):
+                tokens.append(event.text)
+
+        if parent_trace is not None:
+            end_span(trace, output={"action": getattr(state.last_plan, "action", "unknown")})
+
+        return AgentResult(
+            planner_output=state.first_plan,
+            search_results=state.last_results or None,
+            evaluator_output=state.last_eval,
+            final_response="".join(tokens),
+            iterations=state.iteration,
+            trace_id=trace_id,
+        )
+
+    # ------------------------------------------------------------------
+    # Core loop
+    # ------------------------------------------------------------------
+
+    def _run(self, state: LoopState, trace: object) -> Iterator[SSEEvent]:
+        """Single shared loop used by both stream_with_trace and run_with_result."""
         yield ThinkingEvent(**THINKING_MESSAGES["analyzing"])
 
-        trace = create_trace("agent_turn", metadata={"user_message": message})
-        state = LoopState(history=history + [{"role": "user", "content": message}])
-
         while state.iteration < self._max_iterations:
-            # --- Planner ---
-            planner_span = create_span(trace, "planner", input={"iteration": state.iteration})
-            meta = llm_metadata(planner_span, "planner")
-
-            plan = self._planner.plan(
-                history=state.history,
-                previous_results=state.last_results or None,
-                evaluator_feedback=state.evaluator_feedback,
-                metadata=meta,
-            )
-            state.last_plan = plan
-
-            end_span(planner_span, output={
-                "action": plan.action,
-                "reasoning_trace": plan.reasoning_trace,
-            })
+            plan = self._call_planner(state, trace)
 
             if plan.action == "clarify":
-                yield ClarifyEvent()
-                conv_span = create_span(trace, "conversationist", input={"mode": "clarify"})
-                conv_meta = llm_metadata(conv_span, "conversationist-clarify")
-                for token in self._conversationist.clarify(plan.question, state.history, stream=True, metadata=conv_meta):  # type: ignore[misc]
-                    yield ResponseChunkEvent(text=token)
-                end_span(conv_span, output={"mode": "clarify"})
-                flush_observability()
-                yield DoneEvent()
+                yield from self._clarify(plan, state, trace)
                 return
 
             if plan.action == "respond":
-                yield ThinkingEvent(**THINKING_MESSAGES["responding"])
-                conv_span = create_span(trace, "conversationist", input={
-                    "mode": "synthesize",
-                    "strategy": plan.response_strategy,
-                    "product_count": len(state.last_results),
-                })
-                conv_meta = llm_metadata(conv_span, "conversationist-synthesize")
-                for token in self._conversationist.synthesize(plan.response_strategy, state.history, state.last_results, stream=True, metadata=conv_meta):  # type: ignore[misc]
-                    yield ResponseChunkEvent(text=token)
-                end_span(conv_span, output={"strategy": plan.response_strategy})
-                flush_observability()
-                yield DoneEvent()
+                yield from self._respond(plan.response_strategy, state, trace)
                 return
 
-            # action == "search"
-            sp = plan.search_plan
+            yield from self._search_and_curate(plan, state, trace)
 
-            yield IntentEvent(
-                summary=plan.intent_summary,
-                semantic_query=sp.semantic_query,
-                filters=_filters_dict(sp.filters),
-            )
-
-            # --- Hybrid Search ---
-            search_span = create_span(trace, "hybrid_search", input={
-                "semantic_query": sp.semantic_query,
-                "filters": _format_filters(sp.filters),
-            })
-
-            result = self._search.search(sp)
-
-            end_span(search_span, output={
-                "candidate_count": result.candidate_count,
-                "result_count": len(result.products),
-            })
-
-            # --- Evaluator ---
-            eval_span = create_span(trace, "evaluator", input={
-                "intent_summary": plan.intent_summary,
-                "candidate_count": result.candidate_count,
-            })
-            eval_meta = llm_metadata(eval_span, "evaluator")
-
-            evaluation = self._evaluator.evaluate(
-                intent_summary=plan.intent_summary,
-                constraints=result.applied_filters,
-                products=result.products,
-                candidate_count=result.candidate_count,
-                metadata=eval_meta,
-            )
-
-            end_span(eval_span, output={
-                "diagnosis": evaluation.diagnosis,
-                "blocking_constraints": evaluation.blocking_constraints,
-                "reason": evaluation.reason,
-            })
-
-            yield ThinkingEvent(
-                message=THINKING_MESSAGES["evaluating"]["message"],
-                detail=f"{result.candidate_count} candidates found",
-            )
-
-            # --- Curator ---
-            if result.products:
-                yield ThinkingEvent(**THINKING_MESSAGES["curating"])
-                curator_span = create_span(trace, "curator", input={"product_count": len(result.products)})
-                curator_meta = llm_metadata(curator_span, "curator")
-                curator_output = self._curator.curate(
-                    products=result.products,
-                    intent_summary=plan.intent_summary,
-                    history=state.history,
-                    metadata=curator_meta,
-                )
-                end_span(curator_span, output={"picks": len(curator_output.picks)})
-                yield ProductsEvent(
-                    intro=curator_output.intro,
-                    items=[p.model_dump() for p in curator_output.picks],
-                )
-
-            state.last_results = result.products
-            state.evaluator_feedback = _format_feedback(evaluation, sp, result.candidate_count)
-            state.iteration += 1
-
-        # Iteration cap reached — respond with whatever we have
+        # Iteration cap — respond with whatever we have
         strategy = strategy_for_result_count(len(state.last_results))
-        yield ThinkingEvent(**THINKING_MESSAGES["responding"])
-        conv_span = create_span(trace, "conversationist", input={
-            "mode": "synthesize",
-            "strategy": strategy,
-            "product_count": len(state.last_results),
-        })
-        conv_meta = llm_metadata(conv_span, "conversationist-synthesize")
-        for token in self._conversationist.synthesize(strategy, state.history, state.last_results, stream=True, metadata=conv_meta):  # type: ignore[misc]
+        yield from self._respond(strategy, state, trace)
+
+    # ------------------------------------------------------------------
+    # Private step methods
+    # ------------------------------------------------------------------
+
+    def _call_planner(self, state: LoopState, trace: object) -> "PlannerOutput":
+        span = create_span(trace, "planner", input={"iteration": state.iteration})
+        plan = self._planner.plan(
+            history=state.history,
+            previous_results=state.last_results or None,
+            evaluator_feedback=state.evaluator_feedback,
+            shown_products=state.curated_products or None,
+            metadata=llm_metadata(span, "planner"),
+        )
+        end_span(span, output={"action": plan.action, "reasoning_trace": plan.reasoning_trace})
+        state.last_plan = plan
+        if state.first_plan is None:
+            state.first_plan = plan
+        return plan
+
+    def _clarify(
+        self, plan: "PlannerOutput", state: LoopState, trace: object
+    ) -> Iterator[SSEEvent]:
+        yield ClarifyEvent()
+        span = create_span(trace, "conversationist", input={"mode": "clarify"})
+        for token in self._conversationist.clarify(  # type: ignore[misc]
+            plan.question, state.history, stream=True,
+            metadata=llm_metadata(span, "conversationist-clarify"),
+        ):
             yield ResponseChunkEvent(text=token)
-        end_span(conv_span, output={"strategy": strategy})
+        end_span(span, output={"mode": "clarify"})
         flush_observability()
         yield DoneEvent()
+
+    def _respond(
+        self, strategy: str, state: LoopState, trace: object
+    ) -> Iterator[SSEEvent]:
+        yield ThinkingEvent(**THINKING_MESSAGES["responding"])
+        products = state.curated_products or state.last_results
+        span = create_span(trace, "conversationist", input={
+            "mode": "synthesize", "strategy": strategy, "product_count": len(products),
+        })
+        for token in self._conversationist.synthesize(  # type: ignore[misc]
+            strategy, state.history, products, stream=True,
+            metadata=llm_metadata(span, "conversationist-synthesize"),
+        ):
+            yield ResponseChunkEvent(text=token)
+        end_span(span, output={"strategy": strategy})
+        flush_observability()
+        yield DoneEvent()
+
+    def _search_and_curate(
+        self, plan: "PlannerOutput", state: LoopState, trace: object
+    ) -> Iterator[SSEEvent]:
+        sp = plan.search_plan
+        yield IntentEvent(
+            summary=plan.intent_summary,
+            semantic_query=sp.semantic_query,
+            filters=_filters_dict(sp.filters),
+        )
+
+        # Search
+        search_span = create_span(trace, "hybrid_search", input={
+            "semantic_query": sp.semantic_query,
+            "filters": _format_filters(sp.filters),
+        })
+        result = self._search.search(sp)
+        end_span(search_span, output={
+            "candidate_count": result.candidate_count,
+            "result_count": len(result.products),
+        })
+
+        # Evaluate
+        eval_span = create_span(trace, "evaluator", input={
+            "intent_summary": plan.intent_summary,
+            "candidate_count": result.candidate_count,
+        })
+        evaluation = self._evaluator.evaluate(
+            intent_summary=plan.intent_summary,
+            constraints=result.applied_filters,
+            products=result.products,
+            candidate_count=result.candidate_count,
+            metadata=llm_metadata(eval_span, "evaluator"),
+        )
+        end_span(eval_span, output={
+            "diagnosis": evaluation.diagnosis,
+            "blocking_constraints": evaluation.blocking_constraints,
+            "reason": evaluation.reason,
+        })
+        state.last_eval = evaluation
+
+        yield ThinkingEvent(
+            message=THINKING_MESSAGES["evaluating"]["message"],
+            detail=f"{result.candidate_count} candidates found",
+        )
+
+        # Curator
+        if result.products:
+            yield ThinkingEvent(**THINKING_MESSAGES["curating"])
+            curator_span = create_span(trace, "curator", input={"product_count": len(result.products)})
+            curator_output = self._curator.curate(
+                products=result.products,
+                intent_summary=plan.intent_summary,
+                history=state.history,
+                metadata=llm_metadata(curator_span, "curator"),
+            )
+            end_span(curator_span, output={"picks": len(curator_output.picks)})
+            products_by_id = {p.product_id: p for p in result.products}
+            state.curated_products = [
+                products_by_id[p.product_id]
+                for p in curator_output.picks
+                if p.product_id in products_by_id
+            ]
+            yield ProductsEvent(
+                intro=curator_output.intro,
+                items=[_product_card_item(p, products_by_id) for p in curator_output.picks],
+            )
+
+        state.last_results = result.products
+        state.evaluator_feedback = _format_feedback(evaluation, sp, result.candidate_count)
+        state.iteration += 1

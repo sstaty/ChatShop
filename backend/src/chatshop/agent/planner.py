@@ -260,6 +260,7 @@ class Planner:
         history: list[dict],
         previous_results: list[Product] | None = None,
         evaluator_feedback: str | None = None,
+        shown_products: list[Product] | None = None,
         metadata: dict | None = None,
     ) -> PlannerOutput:
         """Produce the next action for the agent loop.
@@ -272,6 +273,9 @@ class Planner:
             evaluator_feedback: The ``reason`` string from the Evaluator's
                 previous output, injected so the Planner can refine its
                 next search strategy. ``None`` on the first call.
+            shown_products: Products displayed to the user in the previous
+                turn. Injected as context so the Planner can route follow-up
+                questions correctly without triggering a new search.
 
         Returns:
             A :class:`ClarifyAction`, :class:`SearchAction`, or
@@ -290,6 +294,20 @@ class Planner:
         # previous_results is None or empty — fall through to LLM
 
         messages: list[dict] = [{"role": "system", "content": _SYSTEM_PROMPT}]
+
+        if shown_products:
+            context_block = "\n\n---\n\n".join(
+                p.to_context_text() for p in shown_products
+            )
+            messages.append({
+                "role": "system",
+                "content": (
+                    "## Products shown to user in previous turn\n\n"
+                    f"{context_block}\n\n"
+                    "These products are already visible — prefer respond over search "
+                    "unless the user clearly wants different products."
+                ),
+            })
 
         if previous_results:
             context_block = "\n\n---\n\n".join(

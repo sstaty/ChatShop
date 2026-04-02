@@ -1,61 +1,50 @@
 from fastapi.testclient import TestClient
 
-from chatshop.agent.agent_loop import AgentResult
-from chatshop.agent.evaluator import EvaluatorOutput
-from chatshop.agent.planner import RespondAction
+from chatshop.api.sse_events import DoneEvent, ResponseChunkEvent
 from main import app
 
 
 class _StubLoop:
-    def __init__(self, result: AgentResult | None = None, error: Exception | None = None) -> None:
-        self._result = result
+    def __init__(self, events=None, error: Exception | None = None) -> None:
+        self._events = events or []
         self._error = error
 
-    def run_with_result(self, message: str, history: list[dict]) -> AgentResult:
+    def stream_with_trace(self, message: str, history: list, shown_products=None):
         if self._error is not None:
             raise self._error
-        assert self._result is not None
-        return self._result
+        yield from self._events
 
 
-def test_chat_returns_agent_result(monkeypatch):
-    result = AgentResult(
-        planner_output=RespondAction(
-            action="respond",
-            response_strategy="informational",
-            reasoning_trace="User asked an informational question.",
-        ),
-        search_results=None,
-        evaluator_output=EvaluatorOutput(
-            diagnosis="sufficient",
-            blocking_constraints=[],
-            reason="No retrieval needed.",
-        ),
-        final_response="ANC reduces external noise.",
-        iterations=0,
-        trace_id=None,
-    )
-
-    monkeypatch.setattr("main.get_agent_loop", lambda: _StubLoop(result=result))
+def test_chat_stream_returns_sse_chunks(monkeypatch):
+    events = [
+        ResponseChunkEvent(text="ANC "),
+        ResponseChunkEvent(text="reduces noise."),
+        DoneEvent(),
+    ]
+    monkeypatch.setattr("main.get_agent_loop", lambda: _StubLoop(events=events))
 
     client = TestClient(app)
-    response = client.post("/chat", json={"message": "What is ANC?", "history": []})
+    response = client.post(
+        "/chat/stream",
+        json={"message": "What is ANC?", "history": [], "shown_products": []},
+    )
 
     assert response.status_code == 200
-    assert response.json() == {
-        "response": "ANC reduces external noise.",
-        "reasoning_trace": "Planner: User asked an informational question.\nEvaluator: sufficient\nReason: No retrieval needed.",
-    }
+    assert "ANC " in response.text
+    assert "reduces noise." in response.text
 
 
-def test_chat_returns_500_when_agent_loop_fails(monkeypatch):
+def test_chat_stream_returns_error_event_on_failure(monkeypatch):
     monkeypatch.setattr(
         "main.get_agent_loop",
         lambda: _StubLoop(error=RuntimeError("backend exploded")),
     )
 
     client = TestClient(app)
-    response = client.post("/chat", json={"message": "Hi", "history": []})
+    response = client.post(
+        "/chat/stream",
+        json={"message": "Hi", "history": []},
+    )
 
-    assert response.status_code == 500
-    assert response.json() == {"detail": "backend exploded"}
+    assert response.status_code == 200
+    assert "Stream failed" in response.text

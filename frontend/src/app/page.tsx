@@ -92,7 +92,7 @@ export default function Home() {
 
     streamingTextRef.current = "";
     isStreamingRef.current = false;
-    await send(text, messages);
+    await send(text, messages, visibleResults);
   };
 
   const handleSend = (event: FormEvent<HTMLFormElement>) => {
