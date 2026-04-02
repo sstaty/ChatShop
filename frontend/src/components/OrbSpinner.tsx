@@ -12,7 +12,7 @@ const RINGS = [
 export function OrbSpinner({ message, detail = "" }: OrbSpinnerProps) {
   return (
     <>
-      <div className="flex max-w-xl flex-col items-center gap-5 text-center sm:flex-row sm:items-center sm:gap-6 sm:text-left">
+      <div className="flex max-w-xl flex-col items-center gap-5 text-center">
         <div className="relative flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-[var(--color-accent-soft)]">
           {RINGS.map(({ size, color, duration, reverse }) => (
             <span

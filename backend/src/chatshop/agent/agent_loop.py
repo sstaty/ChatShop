@@ -64,12 +64,12 @@ if TYPE_CHECKING:
 
 
 THINKING_MESSAGES: dict[str, dict[str, str]] = {
-    "analyzing":  {"message": "Decoding your request...",      "detail": "figuring out what you want"},
-    "searching":  {"message": "Scanning the catalogue...",     "detail": "running hybrid search"},
-    "evaluating": {"message": "Checking quality...",           "detail": "evaluator quality gate"},
-    "curating":   {"message": "Picking your best options...", "detail": "curator selecting top products"},
-    "responding": {"message": "Crafting your answer...",       "detail": "almost there"},
-    "clarifying": {"message": "Need a bit more info...",       "detail": ""},
+    "analyzing":  {"message": "Decoding your request...",      "detail": "Aligning cosmic signals with your intent..."},
+    "searching":  {"message": "Scanning the catalogue...",     "detail": "Drifting through starfields of infinite possibilities..."},
+    "evaluating": {"message": "Checking quality...",           "detail": "Running it past the intergalactic standards council..."},
+    "curating":   {"message": "Picking your best options...",  "detail": "Handpicking gems from the asteroid belt..."},
+    "responding": {"message": "Crafting your answer...",       "detail": "Stitching together stardust into something useful..."},
+    "clarifying": {"message": "Need a bit more info...",       "detail": "My telescope needs a clearer signal..."},
 }
 
 

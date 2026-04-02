@@ -28,10 +28,6 @@ function fisherYates<T>(arr: T[]): T[] {
   return a;
 }
 
-function seededRandom(seed: number) {
-  const x = Math.sin(seed + 1) * 10000;
-  return x - Math.floor(x);
-}
 
 function extractIntentWords(semanticQuery: string, filters: Record<string, unknown>): string[] {
   const queryWords = semanticQuery.split(/\s+/).filter((w) => w.length > 2);
@@ -71,24 +67,46 @@ export function ChatZone({
   const [mountId, setMountId] = useState(0);
   const [wordEntries, setWordEntries] = useState<WordEntry[]>([]);
   const clearTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const staggerTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  const wordAnimationEnabled = false;
 
   useEffect(() => {
+    if (!wordAnimationEnabled) return;
     if (agentState.status === "intent") {
+      // Backend may emit multiple intent events per request (up to max_iterations=3).
+      // Only start the stagger on the first intent; ignore subsequent ones while active.
+      if (staggerTimersRef.current.length > 0) return;
+
       if (clearTimerRef.current) clearTimeout(clearTimerRef.current);
+
       mountIdRef.current += 1;
       const mid = mountIdRef.current;
       const words = extractIntentWords(agentState.semanticQuery, agentState.filters);
       const positions = fisherYates(PRESET_POSITIONS).slice(0, words.length);
+
       setMountId(mid);
-      setWordEntries(
-        words.map((word, i) => ({
-          word,
-          pos: positions[i],
-          duration: 1.6 + seededRandom(i * 3) * 1.0,
-          delay: seededRandom(i * 7) * 1.5,
-        }))
-      );
+      setWordEntries([]);
+
+      words.forEach((word, i) => {
+        const timer = setTimeout(() => {
+          // Remove this timer from the active list so the guard resets after all words appear
+          staggerTimersRef.current = staggerTimersRef.current.filter(t => t !== timer);
+          setWordEntries(prev => [
+            ...prev,
+            {
+              word,
+              pos: positions[i],
+              duration: 2,
+              delay: 0,
+            },
+          ]);
+        }, i * 1800);
+        staggerTimersRef.current.push(timer);
+      });
     } else if (agentState.status === "results" || agentState.status === "clarify") {
+      staggerTimersRef.current.forEach(clearTimeout);
+      staggerTimersRef.current = [];
       clearTimerRef.current = setTimeout(() => {
         setWordEntries([]);
         clearTimerRef.current = null;
@@ -96,7 +114,10 @@ export function ChatZone({
     }
   }, [agentState.status]);
 
-  useEffect(() => () => { if (clearTimerRef.current) clearTimeout(clearTimerRef.current); }, []);
+  useEffect(() => () => {
+    if (clearTimerRef.current) clearTimeout(clearTimerRef.current);
+    staggerTimersRef.current.forEach(clearTimeout);
+  }, []);
 
   return (
     <div className="relative h-full min-h-0 flex-1 overflow-hidden bg-[linear-gradient(180deg,#fbfeff_0%,var(--color-surface-muted)_100%)]">
@@ -105,17 +126,20 @@ export function ChatZone({
           showThinking ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
       >
-        {wordEntries.map(({ word, pos, duration, delay }) => (
+        {wordEntries.map(({ word, pos, duration }) => (
           <span
             key={`${mountId}-${word}`}
+            onAnimationIteration={() => {
+              const newPos = PRESET_POSITIONS[Math.floor(Math.random() * PRESET_POSITIONS.length)];
+              setWordEntries(prev =>
+                prev.map(e => e.word === word ? { ...e, pos: newPos } : e)
+              );
+            }}
             style={{
               position: "absolute",
               top: `${pos[0]}%`,
               left: `${pos[1]}%`,
-              // Pure CSS animation — no inline opacity or transition to conflict with it.
-              // "backwards" holds keyframe-0 (opacity:0) during the initial delay so
-              // words never flash visible before their animation begins.
-              animation: `word-float ${duration.toFixed(2)}s ease-in-out ${delay.toFixed(2)}s infinite backwards`,
+              animation: `word-float ${duration.toFixed(2)}s ease-in-out 0s infinite backwards`,
               fontSize: "16px",
               fontWeight: 600,
               letterSpacing: "0.04em",
