@@ -12,6 +12,7 @@ export interface ProductItem {
   badge: string
   rationale: string
   key_attrs: string[]
+  price?: number
   type?: ProductVisualType
   [key: string]: unknown
 }

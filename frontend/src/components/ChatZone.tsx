@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { AgentState } from "@/lib/agentState";
 import { OrbSpinner } from "@/components/OrbSpinner";
 
@@ -12,34 +13,41 @@ interface ChatZoneProps {
   inputForm: React.ReactNode;
 }
 
+const PRESET_POSITIONS: [number, number][] = [
+  [18, 14], [14, 68], [24, 84], [70, 16], [74, 70],
+  [80, 44], [10, 44], [58, 82], [42, 10], [84, 22],
+];
+
+// Fisher-Yates — actually random, unlike .sort(() => Math.random() - 0.5)
+function fisherYates<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function seededRandom(seed: number) {
+  const x = Math.sin(seed + 1) * 10000;
+  return x - Math.floor(x);
+}
+
+function extractIntentWords(semanticQuery: string, filters: Record<string, unknown>): string[] {
+  const queryWords = semanticQuery.split(/\s+/).filter((w) => w.length > 2);
+  const filterWords = Object.values(filters).map((v) => String(v)).filter((v) => v.length > 1);
+  return [...new Set([...queryWords, ...filterWords])].slice(0, 3);
+}
+
 function getThinkingCopy(agentState: AgentState) {
-  if (agentState.status === "thinking") {
-    return { message: agentState.message, detail: agentState.detail };
-  }
-
-  if (agentState.status === "intent") {
-    return {
-      message: "Understanding your request...",
-      detail: "Figuring out what you actually want",
-    };
-  }
-
-  if (agentState.status === "results") {
-    return {
-      message: "Lining up the best matches...",
-      detail: "Turning results into a recommendation",
-    };
-  }
-
-  if (agentState.status === "clarify") {
-    return {
-      message: "Need one more detail...",
-      detail: "Putting the follow-up question together",
-    };
-  }
-
+  if (agentState.status === "thinking") return { message: agentState.message, detail: agentState.detail };
+  if (agentState.status === "intent")   return { message: "Understanding your request...", detail: "Figuring out what you actually want" };
+  if (agentState.status === "results")  return { message: "Lining up the best matches...", detail: "Turning results into a recommendation" };
+  if (agentState.status === "clarify")  return { message: "Need one more detail...", detail: "Putting the follow-up question together" };
   return { message: "Working on it...", detail: "" };
 }
+
+type WordEntry = { word: string; pos: [number, number]; duration: number; delay: number };
 
 export function ChatZone({
   agentState,
@@ -57,6 +65,39 @@ export function ChatZone({
   const showIdleInput = showInput && !showResponseText;
   const thinkingCopy = getThinkingCopy(agentState);
 
+  // mountId increments each time a new intent arrives — ensures fresh DOM elements
+  // via key so animations always start from scratch, never restart mid-cycle
+  const mountIdRef = useRef(0);
+  const [mountId, setMountId] = useState(0);
+  const [wordEntries, setWordEntries] = useState<WordEntry[]>([]);
+  const clearTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (agentState.status === "intent") {
+      if (clearTimerRef.current) clearTimeout(clearTimerRef.current);
+      mountIdRef.current += 1;
+      const mid = mountIdRef.current;
+      const words = extractIntentWords(agentState.semanticQuery, agentState.filters);
+      const positions = fisherYates(PRESET_POSITIONS).slice(0, words.length);
+      setMountId(mid);
+      setWordEntries(
+        words.map((word, i) => ({
+          word,
+          pos: positions[i],
+          duration: 1.6 + seededRandom(i * 3) * 1.0,
+          delay: seededRandom(i * 7) * 1.5,
+        }))
+      );
+    } else if (agentState.status === "results" || agentState.status === "clarify") {
+      clearTimerRef.current = setTimeout(() => {
+        setWordEntries([]);
+        clearTimerRef.current = null;
+      }, 300);
+    }
+  }, [agentState.status]);
+
+  useEffect(() => () => { if (clearTimerRef.current) clearTimeout(clearTimerRef.current); }, []);
+
   return (
     <div className="relative h-full min-h-0 flex-1 overflow-hidden bg-[linear-gradient(180deg,#fbfeff_0%,var(--color-surface-muted)_100%)]">
       <div
@@ -64,6 +105,29 @@ export function ChatZone({
           showThinking ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
       >
+        {wordEntries.map(({ word, pos, duration, delay }) => (
+          <span
+            key={`${mountId}-${word}`}
+            style={{
+              position: "absolute",
+              top: `${pos[0]}%`,
+              left: `${pos[1]}%`,
+              // Pure CSS animation — no inline opacity or transition to conflict with it.
+              // "backwards" holds keyframe-0 (opacity:0) during the initial delay so
+              // words never flash visible before their animation begins.
+              animation: `word-float ${duration.toFixed(2)}s ease-in-out ${delay.toFixed(2)}s infinite backwards`,
+              fontSize: "16px",
+              fontWeight: 600,
+              letterSpacing: "0.04em",
+              color: "var(--color-text-tertiary)",
+              pointerEvents: "none",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {word}
+          </span>
+        ))}
+
         <OrbSpinner message={thinkingCopy.message} detail={thinkingCopy.detail} />
       </div>
 

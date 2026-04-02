@@ -5,12 +5,13 @@ import { ProductCard } from "./ProductCard";
 import { AgentState, ProductItem, ProductVisualType } from "@/lib/agentState";
 
 const PILLS = ["running headphones", "for gym", "noise cancelling"];
-const TOP_ZONE_VISIBLE = new Set(["intent", "results"]);
+const TOP_ZONE_VISIBLE = new Set(["results"]);
 
 // Approximate height of the input form only (p-3 + p-2 + input row)
-const INPUT_HEIGHT = "108px";
-const IDLE_CHAT_TOP = "58vh";
-const STARTED_CHAT_TOP = "46vh";
+const INPUT_HEIGHT = "100px";
+const IDLE_CHAT_TOP = "50vh";
+const STARTED_CHAT_TOP = "34vh";
+const CARDS_CHAT_TOP = "60vh";
 const IDLE_CHAT_WIDTH = "max-w-2xl";
 const STARTED_CHAT_WIDTH = "max-w-3xl";
 
@@ -101,18 +102,19 @@ function ProductsPanel({
 }) {
   return (
     <div
-      className={`flex h-full items-stretch justify-center gap-4 overflow-x-auto px-4 py-4 transition-opacity duration-150 md:px-5 ${
+      className={`flex h-full items-stretch justify-center gap-4 overflow-x-auto px-4 pt-16 pb-4 transition-opacity duration-150 md:px-5 ${
         isDismissing ? "opacity-0" : "opacity-100"
       }`}
     >
       {items.map((item, index) => (
         <div
           key={`${item.product_id}-${renderVersion}`}
-          className="product-card-enter flex w-full max-w-[17rem] shrink-0 justify-center"
+          className="product-card-enter flex w-full max-w-[380px] shrink-0 justify-center mb-4"
           style={{ animationDelay: `${index * 80}ms` }}
         >
           <ProductCard
             name={item.product_id}
+            price={typeof item.price === "number" ? item.price : undefined}
             type={inferProductType(item)}
             badge={item.badge}
             rationale={item.rationale}
@@ -236,20 +238,18 @@ export function ChatShopLayout({
       </div>
 
       {/*
-        ── Orb / top zone ──────────────────────────────────────────────────
-        No background — orb floats freely. Fades in/out with opacity.
-        Always rendered (so fade-out works); content switches via agentState.
+        ── Product Cards ──────────────────────────────────────────────────
       */}
       <div
-        className="absolute inset-x-0 top-0 flex justify-center items-center px-4 md:px-8"
+        className="absolute inset-x-0 top-0 flex justify-center items-center px-4 md:px-8 pt-6"
         style={{
-          height: "calc(46vh - 16px)",
+          height: "calc(54vh - 16px)",
           opacity: topVisible ? 1 : 0,
           transition: "opacity 0.4s ease",
           pointerEvents: topVisible ? "auto" : "none",
         }}
       >
-        <div className="h-full w-full max-w-5xl">
+        <div className="h-full w-full max-w-7xl">
           <TopZoneContent
             agentState={agentState}
             visibleResults={visibleResults}
@@ -267,10 +267,10 @@ export function ChatShopLayout({
       <div
         className="absolute inset-x-0 flex justify-center px-4 md:px-8"
         style={{
-          top: hasStarted ? STARTED_CHAT_TOP : IDLE_CHAT_TOP,
-          height: hasStarted ? "32vh" : INPUT_HEIGHT,
+          top: hasStarted ? (showingResults ? CARDS_CHAT_TOP : STARTED_CHAT_TOP) : IDLE_CHAT_TOP,
+          height: hasStarted ? "28vh" : INPUT_HEIGHT,
           transform: hasStarted ? "none" : "translateY(-50%)",
-          transition: "top 220ms ease, transform 220ms ease, height 220ms ease",
+          transition: "top 300ms ease, transform 220ms ease, height 220ms ease",
         }}
       >
         <div
@@ -294,7 +294,7 @@ export function ChatShopLayout({
       <div
         className="absolute inset-x-0 flex justify-center px-4 pt-8"
         style={{
-          top: hasStarted ? `calc(${STARTED_CHAT_TOP} + ${INPUT_HEIGHT} + 14px)` : `calc(${IDLE_CHAT_TOP} + 52px)`,
+          top: hasStarted ? `calc(${STARTED_CHAT_TOP} + ${INPUT_HEIGHT} + 14px)` : `calc(${IDLE_CHAT_TOP} + 58px)`,
           opacity: hasStarted ? 0 : 1,
           transition: "opacity 0.4s ease",
           pointerEvents: hasStarted ? "none" : "auto",

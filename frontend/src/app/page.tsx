@@ -90,19 +90,6 @@ export default function Home() {
     setIsStreaming(false);
     setStreamingText("");
 
-    if (visibleResults.length > 0) {
-      if (dismissTimerRef.current) {
-        clearTimeout(dismissTimerRef.current);
-      }
-
-      setIsResultsDismissing(true);
-      dismissTimerRef.current = setTimeout(() => {
-        setVisibleResults([]);
-        setIsResultsDismissing(false);
-        dismissTimerRef.current = null;
-      }, 150);
-    }
-
     streamingTextRef.current = "";
     isStreamingRef.current = false;
     await send(text, messages);
