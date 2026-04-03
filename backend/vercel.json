@@ -1,0 +1,3 @@
+{
+  "buildCommand": "uv run python scripts/ingest.py"
+}
