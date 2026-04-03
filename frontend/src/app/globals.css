@@ -1,5 +1,41 @@
 @import "tailwindcss";
 
+/* ── Height-responsive layout variables ─────────────────────────────────────
+   Browser viewport on 1080p laptop is typically ~920px (after OS taskbar +
+   browser chrome). Use 800px as the reliable "full-HD" threshold.
+   -------------------------------------------------------------------------- */
+:root {
+  /* Card image */
+  --card-img-h: 8rem;      /* 128px — mobile / very short */
+
+  /* Products zone (the top panel height) */
+  --zone-h: 48vh;
+
+  /* Where the chatbox top edge sits when products are visible */
+  --chat-top-results: 52vh;
+
+  /* Chatbox height once conversation has started */
+  --chat-h-active: max(200px, 28vh);
+}
+
+@media (min-height: 800px) {
+  :root {
+    --card-img-h: 11rem;         /* 176px — 1080p */
+    --zone-h: 60vh;
+    --chat-top-results: 65vh;
+    --chat-h-active: max(240px, 28vh);
+  }
+}
+
+@media (min-height: 1300px) {
+  :root {
+    --card-img-h: 13.5rem;       /* 216px — 1440p+ */
+    --zone-h: 54vh;
+    --chat-top-results: 60vh;
+    --chat-h-active: max(280px, 32vh);
+  }
+}
+
 :root {
   --background: #edf7ff;
   --foreground: #0f172a;
@@ -93,9 +129,8 @@ textarea {
 
 .surface-card-strong {
   border: 1px solid var(--color-border-secondary);
-  background: rgba(255, 253, 248, 0.94);
+  background: rgba(255, 253, 248, 0.97);
   box-shadow: var(--shadow-soft);
-  backdrop-filter: blur(8px);
 }
 
 .section-label {
@@ -200,11 +235,24 @@ textarea {
 
 .response-copy {
   white-space: pre-wrap;
-  font-size: 17px;
-  line-height: 2rem;
+  font-size: 15px;
+  line-height: 1.75rem;
   font-weight: 500;
   letter-spacing: -0.015em;
   color: var(--color-text-primary);
+}
+
+.rationale-clamp {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  -webkit-line-clamp: 3;
+}
+@media (min-height: 800px) {
+  .rationale-clamp { -webkit-line-clamp: 4; }
+}
+@media (min-height: 1300px) {
+  .rationale-clamp { -webkit-line-clamp: 7; }
 }
 
 .product-chip {
@@ -248,7 +296,7 @@ textarea {
   }
 
   .response-copy {
-    font-size: 1.15rem;
-    line-height: 2.25rem;
+    font-size: 1.05rem;
+    line-height: 2rem;
   }
 }

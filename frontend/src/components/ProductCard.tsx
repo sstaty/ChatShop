@@ -39,18 +39,18 @@ export function ProductCard({ name, price, type, badge, rationale, keyAttrs }: P
 
   return (
     <article
-      className="surface-card-strong flex h-full w-full max-w-[380px] min-w-[280px] flex-col overflow-hidden rounded-[1.7rem]"
+      className="surface-card-strong flex h-full w-full max-w-[380px] min-w-[260px] md:min-w-[280px] flex-col overflow-hidden rounded-[1.7rem]"
       style={{ background: `linear-gradient(160deg, ${badgeStyle.background}28 0%, rgba(255,255,255,0) 50%), rgba(255,255,255,0.94)` }}
     >
       <div
-        className="px-4 py-2.5 text-[12px] font-semibold uppercase tracking-[0.18em]"
+        className="px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em]"
         style={{ backgroundColor: badgeStyle.background, color: badgeStyle.text }}
       >
         {badge}
       </div>
 
-      <div className="flex flex-1 flex-col p-4">
-        <div className="relative h-54 overflow-hidden rounded-[1.25rem] border border-(--color-border-tertiary) bg-[linear-gradient(180deg,rgba(255,255,255,0.82),rgba(240,248,255,0.96))]">
+      <div className="flex flex-1 flex-col p-3">
+        <div className="relative overflow-hidden rounded-[1.25rem] border border-(--color-border-tertiary) bg-[linear-gradient(180deg,rgba(255,255,255,0.82),rgba(240,248,255,0.96))]" style={{ height: "var(--card-img-h)" }}>
             <Image
               src={image.src}
               alt={image.alt}
@@ -60,7 +60,7 @@ export function ProductCard({ name, price, type, badge, rationale, keyAttrs }: P
             />
         </div>
 
-        <div className="mt-4 flex items-start justify-between gap-3">
+        <div className="mt-2 flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="section-label">{image.label}</p>
             <h3 className="mt-1 text-balance text-[1.1rem] font-semibold leading-6 tracking-[-0.02em] text-(--color-text-primary)">
@@ -74,9 +74,9 @@ export function ProductCard({ name, price, type, badge, rationale, keyAttrs }: P
           </div>
         </div>
 
-        <p className="mt-3 line-clamp-7 text-[16px] leading-6 text-(--color-text-secondary)">{rationale}</p>
+        <p className="rationale-clamp mt-2 text-[13px] leading-[1.5] text-(--color-text-secondary)">{rationale}</p>
 
-        <div className="mt-auto flex flex-wrap gap-2.5 pt-4">
+        <div className="mt-auto flex flex-wrap gap-2 pt-3">
           {keyAttrs.map((attr) => (
             <span key={attr} className="product-chip">
               {attr}

@@ -11,7 +11,7 @@ const TOP_ZONE_VISIBLE = new Set(["results"]);
 const INPUT_HEIGHT = "100px";
 const IDLE_CHAT_TOP = "50vh";
 const STARTED_CHAT_TOP = "34vh";
-const CARDS_CHAT_TOP = "60vh";
+const CARDS_CHAT_TOP = "var(--chat-top-results)";
 const IDLE_CHAT_WIDTH = "max-w-2xl";
 const STARTED_CHAT_WIDTH = "max-w-3xl";
 
@@ -102,7 +102,7 @@ function ProductsPanel({
 }) {
   return (
     <div
-      className={`flex h-full items-stretch justify-center gap-4 overflow-x-auto px-4 pt-16 pb-4 transition-opacity duration-150 md:px-5 ${
+      className={`flex h-full items-stretch justify-center gap-4 overflow-x-auto px-4 pt-10 pb-2 transition-opacity duration-150 md:px-5 ${
         isDismissing ? "opacity-0" : "opacity-100"
       }`}
     >
@@ -208,15 +208,15 @@ export function ChatShopLayout({
         <div className="mb-3 rounded-full border border-[var(--color-border-primary)] bg-[rgba(255,255,255,0.82)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-accent-strong)] backdrop-blur-sm">
           Agent-led shopping interface
         </div>
-        <h1 className="text-balance font-serif text-6xl font-semibold tracking-[-0.04em] text-[var(--color-text-primary)] sm:text-7xl md:text-[5.5rem]">
+        <h1 className="text-balance font-serif text-4xl font-semibold tracking-[-0.04em] text-[var(--color-text-primary)] sm:text-5xl md:text-5xl lg:text-6xl xl:text-[5rem]">
           ChatShop
         </h1>
-        <p className="mt-4 max-w-2xl text-balance text-[17px] leading-8 text-[var(--color-text-secondary)] md:text-[19px]">
+        <p className="mt-4 max-w-2xl text-balance text-[15px] leading-7 text-[var(--color-text-secondary)] md:text-[17px] md:leading-8">
           Tell me what you need and I will find it.
           <br />
           You don&apos;t have to browse categories or apply filters.
         </p>
-        <p className="mt-4 text-[13px] font-medium uppercase tracking-[0.16em] text-[var(--color-text-tertiary)]">
+        <p className="mt-3 text-[12px] font-medium uppercase tracking-[0.16em] text-[var(--color-text-tertiary)]">
           Currently a headphones demo.
         </p>
       </div>
@@ -241,9 +241,9 @@ export function ChatShopLayout({
         ── Product Cards ──────────────────────────────────────────────────
       */}
       <div
-        className="absolute inset-x-0 top-0 flex justify-center items-center px-4 md:px-8 pt-6"
+        className="absolute inset-x-0 top-0 flex justify-center items-center px-4 md:px-8 pt-4"
         style={{
-          height: "calc(54vh - 16px)",
+          height: "var(--zone-h)",
           opacity: topVisible ? 1 : 0,
           transition: "opacity 0.4s ease",
           pointerEvents: topVisible ? "auto" : "none",
@@ -257,6 +257,11 @@ export function ChatShopLayout({
             resultsRenderVersion={resultsRenderVersion}
           />
         </div>
+        {/* Gradient fade at the bottom — smooths the zone edge into the page */}
+        <div
+          className="absolute inset-x-0 bottom-0 pointer-events-none"
+          style={{ height: "72px", background: "linear-gradient(to bottom, transparent, var(--color-page))" }}
+        />
       </div>
 
       {/*
@@ -268,7 +273,7 @@ export function ChatShopLayout({
         className="absolute inset-x-0 flex justify-center px-4 md:px-8"
         style={{
           top: hasStarted ? (showingResults ? CARDS_CHAT_TOP : STARTED_CHAT_TOP) : IDLE_CHAT_TOP,
-          height: hasStarted ? "28vh" : INPUT_HEIGHT,
+          height: hasStarted ? "var(--chat-h-active)" : INPUT_HEIGHT,
           transform: hasStarted ? "none" : "translateY(-50%)",
           transition: "top 300ms ease, transform 220ms ease, height 220ms ease",
         }}
