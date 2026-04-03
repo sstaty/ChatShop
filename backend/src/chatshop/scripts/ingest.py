@@ -18,7 +18,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 from chatshop.data.cleaner import clean_headphones
 from chatshop.data.loader import load_json
 from chatshop.embeddings.embedder import Embedder
-from chatshop.vectorstore.chroma import ChromaStore
+from chatshop.vectorstore.numpy_store import NumpyStore
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger(__name__)
@@ -31,9 +31,8 @@ def ingest(json_path: Path, embed_batch_size: int = 128) -> None:
     log.info("Loading embedder …")
     embedder = Embedder()
 
-    log.info("Connecting to ChromaDB …")
-    store = ChromaStore()
-    log.info("Collection currently holds %d documents.", store.count())
+    store = NumpyStore.build_empty()
+    log.info("Store initialised (empty).")
 
     log.info("Loading %s …", json_path)
     raw_list = load_json(json_path)
@@ -51,8 +50,9 @@ def ingest(json_path: Path, embed_batch_size: int = 128) -> None:
     for start in range(0, len(products), _UPSERT_BATCH):
         store.upsert(products[start : start + _UPSERT_BATCH], vectors[start : start + _UPSERT_BATCH])
 
+    store.save()
     elapsed = time.perf_counter() - t0
-    log.info("Done. Upserted %d products in %.1f s. Collection now holds %d documents.", len(products), elapsed, store.count())
+    log.info("Done. Saved %d products in %.1f s.", len(products), elapsed)
 
 
 def main() -> None:

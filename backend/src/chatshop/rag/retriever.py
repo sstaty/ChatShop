@@ -1,7 +1,7 @@
 from chatshop.config import settings
 from chatshop.data.models import Product
 from chatshop.embeddings.embedder import Embedder
-from chatshop.vectorstore.chroma import ChromaStore
+from chatshop.vectorstore.numpy_store import NumpyStore
 
 
 class Retriever:
@@ -10,10 +10,10 @@ class Retriever:
     def __init__(
         self,
         embedder: Embedder | None = None,
-        store: ChromaStore | None = None,
+        store: NumpyStore | None = None,
     ) -> None:
         self._embedder = embedder or Embedder()
-        self._store = store or ChromaStore()
+        self._store = store or NumpyStore()
 
     def retrieve(self, query: str, top_k: int | None = None) -> list[Product]:
         vector = self._embedder.encode_one(query)

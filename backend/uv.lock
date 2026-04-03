@@ -499,9 +499,9 @@ name = "chatshop"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "chromadb" },
     { name = "fastapi" },
     { name = "langfuse" },
+    { name = "numpy" },
     { name = "openai" },
     { name = "pandas" },
     { name = "pydantic" },
@@ -511,6 +511,9 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+chromadb = [
+    { name = "chromadb" },
+]
 dev = [
     { name = "ipykernel" },
     { name = "jupyter" },
@@ -535,7 +538,7 @@ test = [
 
 [package.metadata]
 requires-dist = [
-    { name = "chromadb", specifier = ">=0.5" },
+    { name = "chromadb", marker = "extra == 'chromadb'", specifier = ">=0.5" },
     { name = "datasets", marker = "extra == 'notebook'", specifier = ">=2.0" },
     { name = "fastapi", specifier = ">=0.110" },
     { name = "ipykernel", marker = "extra == 'dev'", specifier = ">=6.0" },
@@ -548,6 +551,7 @@ requires-dist = [
     { name = "mypy", marker = "extra == 'lint'", specifier = ">=1.10" },
     { name = "notebook", marker = "extra == 'dev'", specifier = ">=7.0" },
     { name = "notebook", marker = "extra == 'notebook'", specifier = ">=7.0" },
+    { name = "numpy", specifier = ">=1.26" },
     { name = "openai", specifier = ">=1.0" },
     { name = "pandas", specifier = ">=2.0" },
     { name = "pydantic", specifier = ">=2.0" },
@@ -558,7 +562,7 @@ requires-dist = [
     { name = "ruff", marker = "extra == 'lint'", specifier = ">=0.4" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.29" },
 ]
-provides-extras = ["notebook", "dev", "test", "lint"]
+provides-extras = ["chromadb", "notebook", "dev", "test", "lint"]
 
 [[package]]
 name = "chromadb"

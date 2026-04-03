@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     embedding_model: str = "text-embedding-3-small"
 
     # Vector store
+    vector_index_path: str = "vector_index.json"
     chroma_persist_dir: str = "chroma_db"
     chroma_collection: str = "products"
 
