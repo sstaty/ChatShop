@@ -20,9 +20,7 @@ class Settings(BaseSettings):
     curator_model: str = "gpt-4o-mini"           # post-search product selection (nano model)
 
     # Embeddings
-    # backend: "local" (sentence-transformers, no API key) or "openai" (text-embedding-3-small)
-    embedding_backend: str = "local"
-    embedding_model: str = "all-MiniLM-L6-v2"
+    embedding_model: str = "text-embedding-3-small"
 
     # Vector store
     chroma_persist_dir: str = "chroma_db"
