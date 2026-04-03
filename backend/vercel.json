@@ -1,3 +1,3 @@
 {
-  "buildCommand": "uv run python -m chatshop.scripts.ingest"
+  "buildCommand": "uv run --active python -m chatshop.scripts.ingest"
 }
