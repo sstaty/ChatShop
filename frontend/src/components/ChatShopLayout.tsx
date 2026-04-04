@@ -197,7 +197,7 @@ export function ChatShopLayout({
         `pointer-events: none` once fading so it can't block clicks.
       */}
       <div
-        className="absolute inset-x-0 flex flex-col items-center justify-end px-6 text-center md:px-8"
+        className="absolute inset-x-0 flex flex-col items-center justify-end px-6 text-center md:px-8 pb-6"
         style={{
           height: `calc(46vh - 16px)`,
           opacity: hasStarted ? 0 : 1,

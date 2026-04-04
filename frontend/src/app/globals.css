@@ -36,6 +36,17 @@
   }
 }
 
+@media (max-width: 767px) {
+  :root {
+    /* Anchor chatbox bottom to viewport bottom when products are showing */
+    --chat-top-results: calc(100dvh - var(--chat-h-active) - 16px);
+    /* Expand card zone to fill the space above the chatbox */
+    --zone-h: calc(100dvh - var(--chat-h-active) - 24px);
+    /* Taller card images on mobile to use the extra zone height */
+    --card-img-h: 11rem;
+  }
+}
+
 :root {
   --background: #edf7ff;
   --foreground: #0f172a;
