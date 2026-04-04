@@ -265,6 +265,9 @@ textarea {
 @media (min-height: 1300px) {
   .rationale-clamp { -webkit-line-clamp: 7; }
 }
+@media (hover: none) and (pointer: coarse) {
+  .rationale-clamp { -webkit-line-clamp: 6; }
+}
 
 .product-chip {
   border: 0.5px solid var(--color-border-secondary);
