@@ -50,7 +50,7 @@ export function ProductCard({ name, price, type, badge, rationale, keyAttrs }: P
       </div>
 
       <div className="flex flex-1 flex-col p-3">
-        <div className="relative overflow-hidden rounded-[1.25rem] border border-(--color-border-tertiary) bg-[linear-gradient(180deg,rgba(255,255,255,0.82),rgba(240,248,255,0.96))]" style={{ height: "var(--card-img-h)" }}>
+        <div className="relative overflow-hidden rounded-[1.25rem] border border-(--color-border-tertiary) bg-[linear-gradient(180deg,rgba(255,255,255,0.82),rgba(240,248,255,0.96))] w-[var(--card-img-h)] md:w-full" style={{ height: "var(--card-img-h)" }}>
             <Image
               src={image.src}
               alt={image.alt}

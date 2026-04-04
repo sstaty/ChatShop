@@ -102,14 +102,14 @@ function ProductsPanel({
 }) {
   return (
     <div
-      className={`flex h-full items-stretch justify-center gap-4 overflow-x-auto px-4 pt-10 pb-2 transition-opacity duration-150 md:px-5 ${
+      className={`flex h-full items-stretch justify-center gap-4 overflow-x-auto px-4 pt-2 pb-2 transition-opacity duration-150 md:px-5 md:pt-10 ${
         isDismissing ? "opacity-0" : "opacity-100"
       }`}
     >
       {items.map((item, index) => (
         <div
           key={`${item.product_id}-${renderVersion}`}
-          className="product-card-enter flex w-full max-w-[380px] shrink-0 justify-center mb-4"
+          className="product-card-enter flex w-full max-w-[380px] shrink-0 justify-center mb-2 md:mb-4"
           style={{ animationDelay: `${index * 80}ms` }}
         >
           <ProductCard

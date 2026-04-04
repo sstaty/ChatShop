@@ -43,7 +43,7 @@
     /* Expand card zone to fill the space above the chatbox */
     --zone-h: calc(100dvh - var(--chat-h-active) - 24px);
     /* Taller card images on mobile to use the extra zone height */
-    --card-img-h: 11rem;
+    --card-img-h: 8.8rem;
   }
 }
 
