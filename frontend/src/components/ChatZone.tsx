@@ -168,7 +168,7 @@ export function ChatZone({
           <div className="flex h-full flex-col justify-end">
             <div className="flex flex-1 items-center justify-center px-6 py-5 md:px-8 md:py-6">
               <div className="mx-auto flex w-full max-w-2xl items-center justify-center text-left">
-                <p className="whitespace-pre-wrap text-[15px] leading-7 font-medium tracking-[-0.015em] text-[var(--color-text-primary)] md:text-[1.05rem] md:leading-8">
+                <p className="whitespace-pre-wrap text-[13px] leading-[1.45] font-medium tracking-[-0.015em] text-[var(--color-text-primary)] md:text-[1.05rem] md:leading-8">
                   {responseText}
                 </p>
               </div>
