@@ -226,7 +226,7 @@ export function ChatShopLayout({
         Tiny label at top-center, fades in after first send.
       */}
       <div
-        className="absolute top-3 inset-x-0 flex justify-center pointer-events-none"
+        className="absolute top-3 inset-x-0 hidden md:flex justify-center pointer-events-none"
         style={{
           opacity: hasStarted ? 1 : 0,
           transition: "opacity 0.5s ease 0.4s",
@@ -241,7 +241,7 @@ export function ChatShopLayout({
         ── Product Cards ──────────────────────────────────────────────────
       */}
       <div
-        className="absolute inset-x-0 top-0 flex justify-center items-center px-4 md:px-8 pt-4"
+        className="absolute inset-x-0 top-0 flex justify-center items-center px-4 md:px-8 pt-0 md:pt-4"
         style={{
           height: "var(--zone-h)",
           opacity: topVisible ? 1 : 0,
