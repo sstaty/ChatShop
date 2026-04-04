@@ -36,7 +36,7 @@
   }
 }
 
-@media (max-width: 767px) {
+@media (hover: none) and (pointer: coarse) {
   :root {
     /* Anchor chatbox bottom to viewport bottom when products are showing */
     --chat-top-results: calc(100dvh - var(--chat-h-active) - 16px);
