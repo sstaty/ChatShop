@@ -48,6 +48,15 @@ LLM Evaluation System. End-to-end evals of actual LLM behavior against a curated
 - `@pytest.mark.eval` marker keeps evals out of default test runs; explicit trigger: `uv run pytest -m eval -v`
 - Here you can find the [Evaluation System Architecture](phase_4_evals.md)
 
+## Phase 5
+Web frontend (Next.js + TypeScript) and FastAPI backend integration.
+
+- **Task 1 — Typed SSE events**: replaced untyped text stream with structured JSON events (`thinking`, `intent`, `products`, `response_chunk`, `clarify`, `done`, `error`). Badge assignment added server-side. Pydantic models in `backend/src/chatshop/api/sse_events.py`.
+- **Task 2 — Layout shell & SSE consumer**: 4-state machine (`idle → thinking → intent → results / clarify`) in `agentState.ts`. `useAgentStream` hook consumes the SSE stream and drives layout transitions. Two-zone layout: top zone (intent chips → product cards) + bottom chat zone. Full mobile responsiveness.
+- **Task 3 — Product cards & chat zone redesign**: real `ProductCard` component with badge colors, type images, and key-attr chips. Orb moved into the chat zone. Chat zone phases: thinking (orb), streaming (text), input (done). Latest assistant message shown above input. Contextual input placeholder per state. Card stagger animation on entry; dissolve on new message.
+
+See task files: [task1](task1_typed_sse_events.md), [task2](task2_layout_shell_sse.md), [task3](task3_product_cards_chat_zone.md)
+
 ## Phase xx - to categorize later
 
 High volume data: get broad data sets (10k + products), clean up, synthetise what's missing (Synthetic Data Augmentation) cleanup, etc.

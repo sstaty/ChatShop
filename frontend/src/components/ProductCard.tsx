@@ -74,7 +74,7 @@ export function ProductCard({ name, price, type, badge, rationale, keyAttrs }: P
           </div>
         </div>
 
-        <p className="rationale-clamp mt-2 text-[13px] leading-[1.5] text-(--color-text-secondary)">{rationale}</p>
+        <p className="mt-2 text-[13px] leading-[1.5] text-(--color-text-secondary)">{rationale}</p>
 
         <div className="mt-auto flex flex-wrap gap-2 pt-3">
           {keyAttrs.map((attr) => (
